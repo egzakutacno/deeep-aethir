@@ -66,16 +66,8 @@ RUN echo '[Unit]' > /etc/systemd/system/aethir-checker.service && \
 # Enable the service
 RUN systemctl enable aethir-checker
 
-# Create startup script
-RUN echo '#!/bin/bash' > /usr/local/bin/start-aethir.sh && \
-    echo 'set -e' >> /usr/local/bin/start-aethir.sh && \
-    echo '' >> /usr/local/bin/start-aethir.sh && \
-    echo '# Start systemd' >> /usr/local/bin/start-aethir.sh && \
-    echo 'exec /lib/systemd/systemd' >> /usr/local/bin/start-aethir.sh && \
-    chmod +x /usr/local/bin/start-aethir.sh
-
 # Expose any necessary ports (if Aethir Checker uses any)
 # EXPOSE 8080
 
-# Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/start-aethir.sh"]
+# Set the entrypoint to systemd
+ENTRYPOINT ["/lib/systemd/systemd"]
