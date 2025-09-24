@@ -48,7 +48,7 @@ A complete Docker containerization solution for the Aethir checker node, integra
 git clone <your-repo>
 cd aethir
 
-# Build Docker image
+# Build Docker image (from root directory)
 docker build --platform linux/amd64 -t aethir-checker:latest .
 
 # Run container
@@ -57,6 +57,8 @@ docker run --privileged --cgroupns=host \
   -v /sys/fs/cgroup:/sys/fs/cgroup \
   -d aethir-checker:latest
 ```
+
+**Note**: The Dockerfile is in the root directory and builds the complete service with systemd + Riptide + Aethir integration.
 
 ## 📊 Service Integration
 
@@ -121,16 +123,26 @@ aethir/
 ├── README.md                           # This file
 ├── DEPLOYMENT.md                       # Deployment guide for orchestrators
 ├── API.md                             # API specification and data formats
-├── Dockerfile                         # Main container definition
+├── ARCHITECTURE.md                     # System architecture documentation
+├── NERDNODE_INTEGRATION.md             # Integration summary for NerdNode
+├── Dockerfile                         # Main container definition (root level)
+├── package.json                       # Root package.json
+├── riptide.config.json                # Root Riptide configuration
+├── src/hooks.ts                       # Root hooks source
+├── tsconfig.json                      # Root TypeScript configuration
 ├── files/
 │   └── AethirCheckerCLI-linux-1.0.3.2.tar.gz  # Aethir binary
 └── aethir-checker/
-    ├── src/hooks.ts                   # Riptide lifecycle hooks
+    ├── src/hooks.ts                   # Riptide lifecycle hooks (duplicate)
     ├── dist/hooks.js                  # Compiled hooks
     ├── package.json                   # Node.js dependencies
-    ├── riptide.config.json            # Riptide configuration
-    └── tsconfig.json                  # TypeScript configuration
+    ├── riptide.config.json            # Riptide configuration (duplicate)
+    ├── tsconfig.json                  # TypeScript configuration (duplicate)
+    ├── Dockerfile                     # Alternative Dockerfile
+    └── AethirCheckerCLI-linux-1.0.3.2.tar.gz  # Aethir binary (duplicate)
 ```
+
+**Note**: The main Dockerfile is in the root directory. The `aethir-checker/` subdirectory contains alternative configurations and duplicates for development purposes.
 
 ## 🔍 Validation & Testing
 
