@@ -25,8 +25,9 @@ module.exports = {
       await execAsync('cd /opt/aethir-checker && ./install.sh')
       logger.info('Aethir service installed and started')
       
-      // Step 2: Accept terms and create wallet via CLI
-      await setupAethirWallet(logger)
+      // Step 2: Let the service handle wallet creation automatically
+      // The install.sh script should handle the initial setup
+      logger.info('Aethir service is running - wallet creation will be handled by the service')
       
       logger.info('Aethir checker started successfully')
     } catch (error) {

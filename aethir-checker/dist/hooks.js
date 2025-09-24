@@ -5,7 +5,6 @@ var import_child_process = require("child_process");
 var import_child_process2 = require("child_process");
 var import_util = require("util");
 var execAsync = (0, import_util.promisify)(import_child_process.exec);
-var walletKeys = {};
 module.exports = {
   installSecrets: async ({ env, logger }) => {
     logger.info("Checking Aethir checker configuration");
@@ -17,7 +16,7 @@ module.exports = {
       logger.info("Running Aethir install.sh script...");
       await execAsync("cd /opt/aethir-checker && ./install.sh");
       logger.info("Aethir service installed and started");
-      await setupAethirWallet(logger);
+      logger.info("Aethir service is running - wallet creation will be handled by the service");
       logger.info("Aethir checker started successfully");
     } catch (error) {
       logger.error(`Failed to start Aethir checker: ${error}`);
@@ -70,152 +69,6 @@ module.exports = {
     }
   }
 };
-async function setupAethirWallet(logger) {
-  logger.info("Setting up Aethir wallet...");
-  try {
-    logger.info("Attempting to stop Aethir service...");
-    await execAsync("systemctl stop aethir-checker 2>/dev/null || true");
-    logger.info("Stopped Aethir service before wallet setup");
-    logger.info("Attempting to kill existing CLI processes...");
-    await execAsync("ps aux | grep AethirCheckerCLI | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true");
-    logger.info("Killed existing CLI processes");
-  } catch (error) {
-    logger.info("Aethir service/processes were not running or already stopped");
-  }
-  logger.info("About to spawn Aethir CLI process...");
-  return new Promise((resolve, reject) => {
-    let outputBuffer = "";
-    let state = "waiting_for_terms";
-    const aethirProcess = (0, import_child_process2.spawn)("./AethirCheckerCLI", {
-      cwd: "/opt/aethir-checker",
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 6e4
-      // 60 second timeout
-    });
-    aethirProcess.stdout.on("data", (data) => {
-      const chunk = data.toString();
-      outputBuffer += chunk;
-      logger.info(`[AETHIR SETUP RAW] ${chunk}`);
-      const lines = outputBuffer.split("\n");
-      outputBuffer = lines.pop() || "";
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        switch (state) {
-          case "waiting_for_terms":
-            if (trimmedLine.includes("Press y to continue") || trimmedLine.includes("Y/N:")) {
-              logger.info('Terms prompt detected, sending "y"');
-              setTimeout(() => {
-                aethirProcess.stdin.write("y\n");
-                state = "waiting_for_wallet_message";
-              }, 500);
-            } else if (trimmedLine.includes("Please create a wallet")) {
-              logger.info("Wallet message detected (terms already accepted), waiting for Aethir prompt");
-              state = "waiting_for_prompt";
-            }
-            break;
-          case "waiting_for_wallet_message":
-            logger.info(`Waiting for wallet message, current line: "${trimmedLine}"`);
-            if (trimmedLine.includes("Please create a wallet")) {
-              logger.info("Wallet creation message detected, waiting for Aethir prompt");
-              state = "waiting_for_prompt";
-            } else if (trimmedLine === "") {
-              logger.info("Empty line received, continuing to wait for wallet message");
-            } else {
-              logger.info(`Other line in waiting_for_wallet_message state: "${trimmedLine}"`);
-            }
-            break;
-          case "waiting_for_prompt":
-            logger.info(`Waiting for prompt, current line: "${trimmedLine}"`);
-            if (trimmedLine.includes("Aethir>")) {
-              logger.info("Aethir prompt detected, sending wallet create command");
-              aethirProcess.stdin.write("aethir wallet create\n");
-              state = "waiting_for_keys";
-            } else if (trimmedLine.includes("Please create a wallet")) {
-              logger.info("Wallet creation message detected, waiting for Aethir prompt");
-            } else if (trimmedLine === "") {
-              logger.info("Empty line received, continuing to wait");
-            } else {
-              logger.info(`Unknown line in waiting_for_prompt state: "${trimmedLine}"`);
-            }
-            break;
-          case "waiting_for_keys":
-            const privateKeyMatch = trimmedLine.match(/Current private key:\s*$/);
-            const publicKeyMatch = trimmedLine.match(/Current public key:\s*$/);
-            if (privateKeyMatch) {
-              walletKeys.privateKey = "";
-              logger.info("Private key start detected");
-            } else if (walletKeys.privateKey !== void 0 && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=\s-]+$/)) {
-              walletKeys.privateKey += trimmedLine;
-              logger.info("Collecting private key line");
-            }
-            if (publicKeyMatch) {
-              logger.info("Public key label detected");
-            } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[a-f0-9]{40}$/)) {
-              walletKeys.publicKey = trimmedLine.trim();
-              logger.info("Public key extracted: " + walletKeys.publicKey);
-            }
-            if (trimmedLine.includes("No licenses delegated to your burner wallet")) {
-              logger.info("Aethir setup completed - wallet ready");
-              if (!walletKeys.publicKey && walletKeys.privateKey) {
-                const lines2 = outputBuffer.split("\n");
-                for (let i = lines2.length - 1; i >= 0; i--) {
-                  const pubKeyMatch = lines2[i].trim().match(/Current public key:\s*(.+)/);
-                  if (pubKeyMatch) {
-                    walletKeys.publicKey = pubKeyMatch[1].trim();
-                    logger.info("Public key extracted from previous line");
-                    break;
-                  }
-                }
-              }
-              logger.info(`Wallet keys - Private: ${walletKeys.privateKey ? "found" : "missing"}, Public: ${walletKeys.publicKey ? "found" : "missing"}`);
-              logger.info("Sending exit command to save wallet files");
-              aethirProcess.stdin.write("aethir exit\n");
-              state = "waiting_for_exit";
-            }
-            if (state === "waiting_for_exit" && trimmedLine.includes("Wait a moment, the client is exiting")) {
-              logger.info("Aethir CLI exiting cleanly, wallet files saved");
-              state = "done";
-            }
-            if (walletKeys.privateKey && walletKeys.publicKey) {
-              logger.info("Wallet keys extracted successfully");
-              logger.info(`Private key length: ${walletKeys.privateKey.length}`);
-              logger.info(`Public key: ${walletKeys.publicKey}`);
-              state = "done";
-              aethirProcess.kill("SIGTERM");
-            }
-            break;
-        }
-      }
-    });
-    aethirProcess.stderr.on("data", (data) => {
-      logger.error(`[AETHIR ERROR] ${data.toString()}`);
-    });
-    aethirProcess.on("spawn", () => {
-      logger.info("[AETHIR PROCESS] Process spawned successfully");
-    });
-    aethirProcess.on("error", (error) => {
-      logger.error(`[AETHIR PROCESS ERROR] ${error.message}`);
-      reject(error);
-    });
-    aethirProcess.on("close", (code) => {
-      logger.info(`[AETHIR PROCESS] Process exited with code ${code}, state: ${state}`);
-      if (state === "done" && walletKeys.privateKey && walletKeys.publicKey) {
-        logger.info("Aethir setup completed successfully");
-        resolve();
-      } else {
-        logger.error(`Aethir process exited with code ${code}`);
-        reject(new Error(`Aethir setup failed with exit code ${code}`));
-      }
-    });
-    setTimeout(() => {
-      if (state !== "done") {
-        logger.error("Aethir setup timed out");
-        aethirProcess.kill("SIGTERM");
-        reject(new Error("Aethir setup timed out"));
-      }
-    }, 3e4);
-  });
-}
 async function getServiceStatus() {
   try {
     const { stdout } = await execAsync("systemctl is-active aethir-checker");
