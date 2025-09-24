@@ -8,9 +8,15 @@ services:
     cgroupns: host
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+      - /var/log/journal
     restart: unless-stopped
     environment:
       - TZ=UTC
+      - container=docker
     # Uncomment if you need to expose ports
     # ports:
     #   - "8080:8080"

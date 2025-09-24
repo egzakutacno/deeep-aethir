@@ -4,6 +4,7 @@ FROM eniocarboni/docker-ubuntu-systemd:jammy
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
+ENV container=docker
 
 # Update system and install required packages
 RUN apt-get update && \
