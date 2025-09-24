@@ -88,7 +88,9 @@ async function setupAethirWallet(logger) {
             const publicKeyMatch = trimmedLine.match(/Current public key:\s*(.+)/);
             if (privateKeyMatch) {
               walletKeys.privateKey = privateKeyMatch[1].trim();
-              logger.info("Private key extracted");
+              logger.info("Private key start detected");
+            } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=]+$/)) {
+              walletKeys.privateKey += trimmedLine;
             }
             if (publicKeyMatch) {
               walletKeys.publicKey = publicKeyMatch[1].trim();
