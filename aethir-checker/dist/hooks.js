@@ -90,7 +90,7 @@ async function setupAethirWallet(logger) {
     aethirProcess.stdout.on("data", (data) => {
       const chunk = data.toString();
       outputBuffer += chunk;
-      logger.info(`[AETHIR SETUP] ${chunk.trim()}`);
+      logger.info(`[AETHIR SETUP RAW] ${chunk}`);
       const lines = outputBuffer.split("\n");
       outputBuffer = lines.pop() || "";
       for (const line of lines) {
@@ -169,7 +169,15 @@ async function setupAethirWallet(logger) {
     aethirProcess.stderr.on("data", (data) => {
       logger.error(`[AETHIR ERROR] ${data.toString()}`);
     });
+    aethirProcess.on("spawn", () => {
+      logger.info("[AETHIR PROCESS] Process spawned successfully");
+    });
+    aethirProcess.on("error", (error) => {
+      logger.error(`[AETHIR PROCESS ERROR] ${error.message}`);
+      reject(error);
+    });
     aethirProcess.on("close", (code) => {
+      logger.info(`[AETHIR PROCESS] Process exited with code ${code}, state: ${state}`);
       if (state === "done" && walletKeys.privateKey && walletKeys.publicKey) {
         logger.info("Aethir setup completed successfully");
         resolve();
@@ -177,10 +185,6 @@ async function setupAethirWallet(logger) {
         logger.error(`Aethir process exited with code ${code}`);
         reject(new Error(`Aethir setup failed with exit code ${code}`));
       }
-    });
-    aethirProcess.on("error", (error) => {
-      logger.error(`Aethir process error: ${error.message}`);
-      reject(error);
     });
     setTimeout(() => {
       if (state !== "done") {

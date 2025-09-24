@@ -127,8 +127,8 @@ async function setupAethirWallet(logger: any): Promise<void> {
       const chunk = data.toString()
       outputBuffer += chunk
       
-      // Log all output for debugging
-      logger.info(`[AETHIR SETUP] ${chunk.trim()}`)
+      // Log all output for debugging (verbose)
+      logger.info(`[AETHIR SETUP RAW] ${chunk}`)
       
       // Process line by line
       const lines = outputBuffer.split('\n')
@@ -234,8 +234,19 @@ async function setupAethirWallet(logger: any): Promise<void> {
       logger.error(`[AETHIR ERROR] ${data.toString()}`)
     })
     
+    // Handle process events (verbose)
+    aethirProcess.on('spawn', () => {
+      logger.info('[AETHIR PROCESS] Process spawned successfully')
+    })
+    
+    aethirProcess.on('error', (error: Error) => {
+      logger.error(`[AETHIR PROCESS ERROR] ${error.message}`)
+      reject(error)
+    })
+    
     // Handle process exit
     aethirProcess.on('close', (code: number) => {
+      logger.info(`[AETHIR PROCESS] Process exited with code ${code}, state: ${state}`)
       if (state === 'done' && walletKeys.privateKey && walletKeys.publicKey) {
         logger.info('Aethir setup completed successfully')
         resolve()
@@ -243,12 +254,6 @@ async function setupAethirWallet(logger: any): Promise<void> {
         logger.error(`Aethir process exited with code ${code}`)
         reject(new Error(`Aethir setup failed with exit code ${code}`))
       }
-    })
-    
-    // Handle process errors
-    aethirProcess.on('error', (error: Error) => {
-      logger.error(`Aethir process error: ${error.message}`)
-      reject(error)
     })
     
     // Set timeout to prevent hanging
