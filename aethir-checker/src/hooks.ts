@@ -46,12 +46,38 @@ module.exports = {
   },
 
   heartbeat: async ({ logger }: HookContext) => {
-    logger.debug('Reporting Aethir checker status')
+    logger.debug('Reporting Aethir checker status and managing licenses')
     
-    return {
-      status: 'running',
-      walletKeys: walletKeys,
-      serviceStatus: await getServiceStatus()
+    try {
+      // Get current wallet keys
+      const currentKeys = await getCurrentWalletKeys(logger)
+      
+      // Get license summary
+      const licenseSummary = await getLicenseSummary(logger)
+      
+      // Auto-approve pending licenses if any
+      if (licenseSummary.pending > 0) {
+        logger.info(`Found ${licenseSummary.pending} pending licenses, auto-approving`)
+        await approveAllLicenses(logger)
+        
+        // Re-check summary after approval
+        const updatedSummary = await getLicenseSummary(logger)
+        logger.info(`License approval completed. New status: ${updatedSummary.ready} ready, ${updatedSummary.pending} pending`)
+      }
+      
+      return {
+        status: 'running',
+        walletKeys: currentKeys,
+        licenseSummary: licenseSummary,
+        serviceStatus: await getServiceStatus()
+      }
+    } catch (error) {
+      logger.error(`Heartbeat failed: ${error}`)
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : String(error),
+        serviceStatus: await getServiceStatus()
+      }
     }
   },
 
@@ -72,7 +98,7 @@ async function setupAethirWallet(logger: any): Promise<void> {
   
   return new Promise((resolve, reject) => {
     let outputBuffer = ''
-    let state: 'waiting_for_terms' | 'waiting_for_prompt' | 'waiting_for_keys' | 'done' = 'waiting_for_terms'
+    let state: 'waiting_for_terms' | 'waiting_for_prompt' | 'waiting_for_keys' | 'waiting_for_exit' | 'done' = 'waiting_for_terms'
     
     // Spawn the Aethir CLI process
     const aethirProcess = spawn('./AethirCheckerCLI', {
@@ -157,8 +183,18 @@ async function setupAethirWallet(logger: any): Promise<void> {
                 }
               }
               logger.info(`Wallet keys - Private: ${walletKeys.privateKey ? 'found' : 'missing'}, Public: ${walletKeys.publicKey ? 'found' : 'missing'}`)
+              
+              // Send exit command to properly close the CLI and save wallet files
+              logger.info('Sending exit command to save wallet files')
+              aethirProcess.stdin.write('aethir exit\n')
+              state = 'waiting_for_exit'
+            }
+            
+            // Wait for the CLI to exit cleanly
+            if (state === 'waiting_for_exit' && trimmedLine.includes('Wait a moment, the client is exiting')) {
+              logger.info('Aethir CLI exiting cleanly, wallet files saved')
               state = 'done'
-              aethirProcess.kill('SIGTERM')
+              // Let the process exit naturally instead of killing it
             }
             
             // Check if we have both keys (fallback)
@@ -225,5 +261,83 @@ async function getServiceStatus(): Promise<string> {
     return stdout.trim()
   } catch {
     return 'inactive'
+  }
+}
+
+async function getCurrentWalletKeys(logger: any): Promise<{ privateKey?: string; publicKey?: string }> {
+  try {
+    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir wallet export\\" | timeout 10 ./AethirCheckerCLI"')
+    
+    // Extract keys from export output
+    const privateKeyMatch = stdout.match(/Current private key:\s*([^\n]+)/)
+    const publicKeyMatch = stdout.match(/Current public key:\s*([^\n]+)/)
+    
+    if (privateKeyMatch && publicKeyMatch) {
+      return {
+        privateKey: privateKeyMatch[1].trim(),
+        publicKey: publicKeyMatch[1].trim()
+      }
+    }
+    
+    logger.warn('Could not extract wallet keys from export')
+    return {}
+  } catch (error) {
+    logger.error(`Failed to get wallet keys: ${error}`)
+    return {}
+  }
+}
+
+async function getLicenseSummary(logger: any): Promise<{
+  checking: number;
+  ready: number;
+  offline: number;
+  banned: number;
+  pending: number;
+  totalDelegated: number;
+}> {
+  try {
+    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir license summary\\" | timeout 10 ./AethirCheckerCLI"')
+    
+    // Parse license summary output
+    const checkingMatch = stdout.match(/(\d+)\s+Checking/)
+    const readyMatch = stdout.match(/(\d+)\s+Ready/)
+    const offlineMatch = stdout.match(/(\d+)\s+Offline/)
+    const bannedMatch = stdout.match(/(\d+)\s+Banned/)
+    const pendingMatch = stdout.match(/(\d+)\s+Pending/)
+    const totalMatch = stdout.match(/(\d+)\s+Total Delegated/)
+    
+    return {
+      checking: checkingMatch ? parseInt(checkingMatch[1]) : 0,
+      ready: readyMatch ? parseInt(readyMatch[1]) : 0,
+      offline: offlineMatch ? parseInt(offlineMatch[1]) : 0,
+      banned: bannedMatch ? parseInt(bannedMatch[1]) : 0,
+      pending: pendingMatch ? parseInt(pendingMatch[1]) : 0,
+      totalDelegated: totalMatch ? parseInt(totalMatch[1]) : 0
+    }
+  } catch (error) {
+    logger.error(`Failed to get license summary: ${error}`)
+    return {
+      checking: 0,
+      ready: 0,
+      offline: 0,
+      banned: 0,
+      pending: 0,
+      totalDelegated: 0
+    }
+  }
+}
+
+async function approveAllLicenses(logger: any): Promise<void> {
+  try {
+    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir license approve --all\\" | timeout 10 ./AethirCheckerCLI"')
+    
+    if (stdout.includes('License operation approve success')) {
+      logger.info('License approval successful')
+    } else {
+      logger.warn('License approval may not have succeeded')
+    }
+  } catch (error) {
+    logger.error(`Failed to approve licenses: ${error}`)
+    throw error
   }
 }
