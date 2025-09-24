@@ -11,26 +11,41 @@ This Docker container provides an Ubuntu 22.04 LTS environment with systemd supp
 
 ## Quick Start
 
-### Build the Image
+### Option A: Automated Setup (Recommended)
 
 ```bash
-docker build -t aethir-checker:latest .
+python3 setup_aethir.py
 ```
 
-### Run the Container
+### Option B: Manual Setup
+
+#### 1. Build the Base Image
+
+```bash
+docker build -t aethir-checker-base:latest .
+```
+
+#### 2. Run the Container
 
 ```bash
 docker run --detach --privileged --cgroupns=host \
   --volume=/sys/fs/cgroup:/sys/fs/cgroup \
   --tmpfs /run --tmpfs /run/lock --tmpfs /tmp --tmpfs /var/log/journal \
   --name aethir-checker \
-  aethir-checker:latest
+  aethir-checker-base:latest
 ```
 
-### Using Docker Compose
+#### 3. Install Aethir Checker
 
 ```bash
-docker-compose up -d
+# Copy the tarball
+docker cp files/AethirCheckerCLI-linux-1.0.3.2.tar.gz aethir-checker:/root/
+
+# Extract and install
+docker exec aethir-checker bash -c "cd /root && tar -xzvf AethirCheckerCLI-linux-1.0.3.2.tar.gz && cd AethirCheckerCLI-linux && ./install.sh"
+
+# Start the service
+docker exec aethir-checker systemctl start aethir-checker
 ```
 
 ## Usage
