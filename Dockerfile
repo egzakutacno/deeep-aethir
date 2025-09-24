@@ -25,14 +25,19 @@ RUN useradd -m -s /bin/bash aethir && \
 
 # Download and extract the Aethir Checker CLI during build (but don't install yet)
 RUN cd /root && \
-    curl -L -o AethirCheckerCLI-linux-1.0.3.2.tar.gz \
+    # Check what we're downloading first
+    curl -L -v -o AethirCheckerCLI-linux-1.0.3.2.tar.gz \
     https://github.com/Aethir/AethirCheckerCLI/releases/download/v1.0.3.2/AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
+    # Check file type and size
+    ls -la AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
+    file AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
     # Try different extraction methods
     (tar -xzf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
      tar -xf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
-     unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz) && \
-    # Clean up the tarball
-    rm AethirCheckerCLI-linux-1.0.3.2.tar.gz
+     unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
+     echo "Extraction failed, keeping tarball for manual extraction") && \
+    # Don't clean up the tarball if extraction failed
+    echo "Download completed"
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]
