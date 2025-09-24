@@ -137,7 +137,27 @@ async function setupAethirWallet(logger: any): Promise<void> {
               logger.info('Public key extracted')
             }
             
-            // Check if we have both keys
+            // Check for completion signal - "No licenses delegated" means setup is complete
+            if (trimmedLine.includes('No licenses delegated to your burner wallet')) {
+              logger.info('Aethir setup completed - wallet ready')
+              if (!walletKeys.publicKey && walletKeys.privateKey) {
+                // Extract public key from the previous line if not captured yet
+                const lines = outputBuffer.split('\n')
+                for (let i = lines.length - 1; i >= 0; i--) {
+                  const pubKeyMatch = lines[i].trim().match(/Current public key:\s*(.+)/)
+                  if (pubKeyMatch) {
+                    walletKeys.publicKey = pubKeyMatch[1].trim()
+                    logger.info('Public key extracted from previous line')
+                    break
+                  }
+                }
+              }
+              logger.info(`Wallet keys - Private: ${walletKeys.privateKey ? 'found' : 'missing'}, Public: ${walletKeys.publicKey ? 'found' : 'missing'}`)
+              state = 'done'
+              aethirProcess.kill('SIGTERM')
+            }
+            
+            // Check if we have both keys (fallback)
             if (walletKeys.privateKey && walletKeys.publicKey) {
               logger.info('Wallet keys extracted successfully')
               logger.info(`Private key length: ${walletKeys.privateKey.length}`)

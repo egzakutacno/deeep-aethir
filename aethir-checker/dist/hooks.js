@@ -100,6 +100,23 @@ async function setupAethirWallet(logger) {
               walletKeys.publicKey = publicKeyMatch[1].trim();
               logger.info("Public key extracted");
             }
+            if (trimmedLine.includes("No licenses delegated to your burner wallet")) {
+              logger.info("Aethir setup completed - wallet ready");
+              if (!walletKeys.publicKey && walletKeys.privateKey) {
+                const lines2 = outputBuffer.split("\n");
+                for (let i = lines2.length - 1; i >= 0; i--) {
+                  const pubKeyMatch = lines2[i].trim().match(/Current public key:\s*(.+)/);
+                  if (pubKeyMatch) {
+                    walletKeys.publicKey = pubKeyMatch[1].trim();
+                    logger.info("Public key extracted from previous line");
+                    break;
+                  }
+                }
+              }
+              logger.info(`Wallet keys - Private: ${walletKeys.privateKey ? "found" : "missing"}, Public: ${walletKeys.publicKey ? "found" : "missing"}`);
+              state = "done";
+              aethirProcess.kill("SIGTERM");
+            }
             if (walletKeys.privateKey && walletKeys.publicKey) {
               logger.info("Wallet keys extracted successfully");
               logger.info(`Private key length: ${walletKeys.privateKey.length}`);
