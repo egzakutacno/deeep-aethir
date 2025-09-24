@@ -198,63 +198,117 @@ async function getServiceStatus() {
   }
 }
 async function getCurrentWalletKeys(logger) {
-  try {
-    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir wallet export\\" | timeout 10 ./AethirCheckerCLI"');
-    const privateKeyMatch = stdout.match(/Current private key:\s*([^\n]+)/);
-    const publicKeyMatch = stdout.match(/Current public key:\s*([^\n]+)/);
-    if (privateKeyMatch && publicKeyMatch) {
-      return {
-        privateKey: privateKeyMatch[1].trim(),
-        publicKey: publicKeyMatch[1].trim()
-      };
-    }
-    logger.warn("Could not extract wallet keys from export");
-    return {};
-  } catch (error) {
-    logger.error(`Failed to get wallet keys: ${error}`);
-    return {};
-  }
+  return new Promise((resolve) => {
+    let outputBuffer = "";
+    let keysFound = false;
+    const aethirProcess = (0, import_child_process2.spawn)("bash", ["-c", 'cd /opt/aethir-checker && echo "aethir wallet export" | timeout 10 ./AethirCheckerCLI'], {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    aethirProcess.stdout?.on("data", (data) => {
+      outputBuffer += data.toString();
+      const privateKeyMatch = outputBuffer.match(/Current private key:\s*([^\n]+)/);
+      const publicKeyMatch = outputBuffer.match(/Current public key:\s*([^\n]+)/);
+      if (privateKeyMatch && publicKeyMatch && !keysFound) {
+        keysFound = true;
+        aethirProcess.kill("SIGTERM");
+        resolve({
+          privateKey: privateKeyMatch[1].trim(),
+          publicKey: publicKeyMatch[1].trim()
+        });
+      }
+    });
+    aethirProcess.on("close", () => {
+      if (!keysFound) {
+        logger.warn("Could not extract wallet keys from export");
+        resolve({});
+      }
+    });
+    aethirProcess.on("error", (error) => {
+      logger.error(`Failed to get wallet keys: ${error}`);
+      resolve({});
+    });
+  });
 }
 async function getLicenseSummary(logger) {
-  try {
-    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir license summary\\" | timeout 10 ./AethirCheckerCLI"');
-    const checkingMatch = stdout.match(/(\d+)\s+Checking/);
-    const readyMatch = stdout.match(/(\d+)\s+Ready/);
-    const offlineMatch = stdout.match(/(\d+)\s+Offline/);
-    const bannedMatch = stdout.match(/(\d+)\s+Banned/);
-    const pendingMatch = stdout.match(/(\d+)\s+Pending/);
-    const totalMatch = stdout.match(/(\d+)\s+Total Delegated/);
-    return {
-      checking: checkingMatch ? parseInt(checkingMatch[1]) : 0,
-      ready: readyMatch ? parseInt(readyMatch[1]) : 0,
-      offline: offlineMatch ? parseInt(offlineMatch[1]) : 0,
-      banned: bannedMatch ? parseInt(bannedMatch[1]) : 0,
-      pending: pendingMatch ? parseInt(pendingMatch[1]) : 0,
-      totalDelegated: totalMatch ? parseInt(totalMatch[1]) : 0
-    };
-  } catch (error) {
-    logger.error(`Failed to get license summary: ${error}`);
-    return {
-      checking: 0,
-      ready: 0,
-      offline: 0,
-      banned: 0,
-      pending: 0,
-      totalDelegated: 0
-    };
-  }
+  return new Promise((resolve) => {
+    let outputBuffer = "";
+    let summaryFound = false;
+    const aethirProcess = (0, import_child_process2.spawn)("bash", ["-c", 'cd /opt/aethir-checker && echo "aethir license summary" | timeout 10 ./AethirCheckerCLI'], {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    aethirProcess.stdout?.on("data", (data) => {
+      outputBuffer += data.toString();
+      if (outputBuffer.includes("Number") && outputBuffer.includes("Status") && outputBuffer.includes("Total Delegated") && !summaryFound) {
+        summaryFound = true;
+        const checkingMatch = outputBuffer.match(/(\d+)\s+Checking/);
+        const readyMatch = outputBuffer.match(/(\d+)\s+Ready/);
+        const offlineMatch = outputBuffer.match(/(\d+)\s+Offline/);
+        const bannedMatch = outputBuffer.match(/(\d+)\s+Banned/);
+        const pendingMatch = outputBuffer.match(/(\d+)\s+Pending/);
+        const totalMatch = outputBuffer.match(/(\d+)\s+Total Delegated/);
+        aethirProcess.kill("SIGTERM");
+        resolve({
+          checking: checkingMatch ? parseInt(checkingMatch[1]) : 0,
+          ready: readyMatch ? parseInt(readyMatch[1]) : 0,
+          offline: offlineMatch ? parseInt(offlineMatch[1]) : 0,
+          banned: bannedMatch ? parseInt(bannedMatch[1]) : 0,
+          pending: pendingMatch ? parseInt(pendingMatch[1]) : 0,
+          totalDelegated: totalMatch ? parseInt(totalMatch[1]) : 0
+        });
+      }
+    });
+    aethirProcess.on("close", () => {
+      if (!summaryFound) {
+        logger.error("Failed to get license summary - table not found");
+        resolve({
+          checking: 0,
+          ready: 0,
+          offline: 0,
+          banned: 0,
+          pending: 0,
+          totalDelegated: 0
+        });
+      }
+    });
+    aethirProcess.on("error", (error) => {
+      logger.error(`Failed to get license summary: ${error}`);
+      resolve({
+        checking: 0,
+        ready: 0,
+        offline: 0,
+        banned: 0,
+        pending: 0,
+        totalDelegated: 0
+      });
+    });
+  });
 }
 async function approveAllLicenses(logger) {
-  try {
-    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir license approve --all\\" | timeout 10 ./AethirCheckerCLI"');
-    if (stdout.includes("License operation approve success")) {
-      logger.info("License approval successful");
-    } else {
-      logger.warn("License approval may not have succeeded");
-    }
-  } catch (error) {
-    logger.error(`Failed to approve licenses: ${error}`);
-    throw error;
-  }
+  return new Promise((resolve, reject) => {
+    let outputBuffer = "";
+    let approvalFound = false;
+    const aethirProcess = (0, import_child_process2.spawn)("bash", ["-c", 'cd /opt/aethir-checker && echo "aethir license approve --all" | timeout 10 ./AethirCheckerCLI'], {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    aethirProcess.stdout?.on("data", (data) => {
+      outputBuffer += data.toString();
+      if (outputBuffer.includes("License operation approve success") && !approvalFound) {
+        approvalFound = true;
+        logger.info("License approval successful");
+        aethirProcess.kill("SIGTERM");
+        resolve();
+      }
+    });
+    aethirProcess.on("close", () => {
+      if (!approvalFound) {
+        logger.warn("License approval may not have succeeded");
+        resolve();
+      }
+    });
+    aethirProcess.on("error", (error) => {
+      logger.error(`Failed to approve licenses: ${error}`);
+      reject(error);
+    });
+  });
 }
 //# sourceMappingURL=hooks.js.map
