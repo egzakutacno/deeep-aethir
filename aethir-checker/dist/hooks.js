@@ -75,8 +75,10 @@ async function setupAethirWallet(logger) {
   try {
     await execAsync("systemctl stop aethir-checker 2>/dev/null || true");
     logger.info("Stopped Aethir service before wallet setup");
+    await execAsync("ps aux | grep AethirCheckerCLI | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true");
+    logger.info("Killed existing CLI processes");
   } catch (error) {
-    logger.info("Aethir service was not running or already stopped");
+    logger.info("Aethir service/processes were not running or already stopped");
   }
   return new Promise((resolve, reject) => {
     let outputBuffer = "";

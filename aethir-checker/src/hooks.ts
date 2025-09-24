@@ -100,12 +100,16 @@ module.exports = {
 async function setupAethirWallet(logger: any): Promise<void> {
   logger.info('Setting up Aethir wallet...')
   
-  // Stop Aethir service first to avoid conflicts
+  // Stop Aethir service and kill CLI processes first to avoid conflicts
   try {
     await execAsync('systemctl stop aethir-checker 2>/dev/null || true')
     logger.info('Stopped Aethir service before wallet setup')
+    
+    // Kill any existing CLI processes
+    await execAsync('ps aux | grep AethirCheckerCLI | grep -v grep | awk \'{print $2}\' | xargs kill -9 2>/dev/null || true')
+    logger.info('Killed existing CLI processes')
   } catch (error) {
-    logger.info('Aethir service was not running or already stopped')
+    logger.info('Aethir service/processes were not running or already stopped')
   }
   
   return new Promise((resolve, reject) => {
