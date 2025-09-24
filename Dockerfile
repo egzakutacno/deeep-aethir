@@ -14,6 +14,7 @@ RUN apt-get update && \
     tar \
     gzip \
     unzip \
+    file \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -25,19 +26,17 @@ RUN useradd -m -s /bin/bash aethir && \
 
 # Download and extract the Aethir Checker CLI during build (but don't install yet)
 RUN cd /root && \
-    # Check what we're downloading first
-    curl -L -v -o AethirCheckerCLI-linux-1.0.3.2.tar.gz \
+    # Download the file
+    curl -L -o AethirCheckerCLI-linux-1.0.3.2.tar.gz \
     https://github.com/Aethir/AethirCheckerCLI/releases/download/v1.0.3.2/AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
-    # Check file type and size
+    # Check what we got
     ls -la AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
     file AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
-    # Try different extraction methods
-    (tar -xzf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
-     tar -xf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
-     unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
-     echo "Extraction failed, keeping tarball for manual extraction") && \
-    # Don't clean up the tarball if extraction failed
-    echo "Download completed"
+    # Try extraction (don't fail if it doesn't work)
+    tar -xzf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
+    tar -xf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
+    unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
+    echo "Extraction failed - will try manual extraction later"
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]
