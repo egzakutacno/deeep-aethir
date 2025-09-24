@@ -12,7 +12,7 @@ This document provides a complete summary of the Aethir Checker service integrat
 ## 📦 Deliverables
 
 ### 1. Complete Docker Image
-- **Image**: `your-registry/aethir-checker:latest`
+- **Image**: `egzakutacno/aethir-checker:latest`
 - **Base**: `eniocarboni/docker-ubuntu-systemd:jammy`
 - **Size**: ~2GB (includes Aethir binary)
 - **Architecture**: linux/amd64
@@ -115,7 +115,7 @@ job "aethir-checker" {
       driver = "docker"
 
       config {
-        image = "your-registry/aethir-checker:latest"
+        image = "egzakutacno/aethir-checker:latest"
         privileged = true
         volumes = [
           "/sys/fs/cgroup:/sys/fs/cgroup:ro"
@@ -162,7 +162,7 @@ spec:
     spec:
       containers:
       - name: aethir-checker
-        image: your-registry/aethir-checker:latest
+        image: egzakutacno/aethir-checker:latest
         securityContext:
           privileged: true
         volumeMounts:

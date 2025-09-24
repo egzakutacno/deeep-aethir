@@ -35,7 +35,7 @@ volumes:
 docker run --privileged --cgroupns=host \
   --name aethir-checker \
   -v /sys/fs/cgroup:/sys/fs/cgroup \
-  -d your-registry/aethir-checker:latest
+  -d egzakutacno/aethir-checker:latest
 ```
 
 ### Option 2: Docker Compose
@@ -43,7 +43,7 @@ docker run --privileged --cgroupns=host \
 version: '3.8'
 services:
   aethir-checker:
-    image: your-registry/aethir-checker:latest
+    image: egzakutacno/aethir-checker:latest
     privileged: true
     cgroupns: host
     volumes:
@@ -75,7 +75,7 @@ spec:
     spec:
       containers:
       - name: aethir-checker
-        image: your-registry/aethir-checker:latest
+        image: egzakutacno/aethir-checker:latest
         securityContext:
           privileged: true
         volumeMounts:
@@ -102,7 +102,7 @@ job "aethir-checker" {
       driver = "docker"
 
       config {
-        image = "your-registry/aethir-checker:latest"
+        image = "egzakutacno/aethir-checker:latest"
         privileged = true
         volumes = [
           "/sys/fs/cgroup:/sys/fs/cgroup:ro"

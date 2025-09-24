@@ -45,8 +45,8 @@ A complete Docker containerization solution for the Aethir checker node, integra
 ### Build and Deploy
 ```bash
 # Clone repository
-git clone <your-repo>
-cd aethir
+git clone https://github.com/egzakutacno/deeep-aethir.git
+cd deeep-aethir
 
 # Build Docker image (from root directory)
 docker build --platform linux/amd64 -t aethir-checker:latest .
