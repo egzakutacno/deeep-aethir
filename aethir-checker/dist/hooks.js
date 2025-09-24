@@ -84,12 +84,16 @@ async function setupAethirWallet(logger) {
             }
             break;
           case "waiting_for_keys":
-            const privateKeyMatch = trimmedLine.match(/Current private key:\s*(.+)/);
+            const privateKeyMatch = trimmedLine.match(/Current private key:\s*(.*)/);
             const publicKeyMatch = trimmedLine.match(/Current public key:\s*(.+)/);
             if (privateKeyMatch) {
-              walletKeys.privateKey = privateKeyMatch[1].trim();
+              if (privateKeyMatch[1].trim()) {
+                walletKeys.privateKey = privateKeyMatch[1].trim();
+              } else {
+                walletKeys.privateKey = "";
+              }
               logger.info("Private key start detected");
-            } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=]+$/)) {
+            } else if (walletKeys.privateKey !== void 0 && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=\s-]+$/)) {
               walletKeys.privateKey += trimmedLine;
             }
             if (publicKeyMatch) {
@@ -98,6 +102,8 @@ async function setupAethirWallet(logger) {
             }
             if (walletKeys.privateKey && walletKeys.publicKey) {
               logger.info("Wallet keys extracted successfully");
+              logger.info(`Private key length: ${walletKeys.privateKey.length}`);
+              logger.info(`Public key: ${walletKeys.publicKey}`);
               state = "done";
               aethirProcess.kill("SIGTERM");
             }

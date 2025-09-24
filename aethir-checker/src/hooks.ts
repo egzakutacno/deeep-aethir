@@ -116,14 +116,18 @@ async function setupAethirWallet(logger: any): Promise<void> {
             
           case 'waiting_for_keys':
             // Look for wallet keys in the output
-            const privateKeyMatch = trimmedLine.match(/Current private key:\s*(.+)/)
+            const privateKeyMatch = trimmedLine.match(/Current private key:\s*(.*)/)
             const publicKeyMatch = trimmedLine.match(/Current public key:\s*(.+)/)
             
             if (privateKeyMatch) {
               // Start collecting private key (multi-line base64)
-              walletKeys.privateKey = privateKeyMatch[1].trim()
+              if (privateKeyMatch[1].trim()) {
+                walletKeys.privateKey = privateKeyMatch[1].trim()
+              } else {
+                walletKeys.privateKey = ''
+              }
               logger.info('Private key start detected')
-            } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=]+$/)) {
+            } else if (walletKeys.privateKey !== undefined && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=\s-]+$/)) {
               // Continue collecting private key lines (base64 content)
               walletKeys.privateKey += trimmedLine
             }
@@ -136,6 +140,8 @@ async function setupAethirWallet(logger: any): Promise<void> {
             // Check if we have both keys
             if (walletKeys.privateKey && walletKeys.publicKey) {
               logger.info('Wallet keys extracted successfully')
+              logger.info(`Private key length: ${walletKeys.privateKey.length}`)
+              logger.info(`Public key: ${walletKeys.publicKey}`)
               state = 'done'
               aethirProcess.kill('SIGTERM')
             }
