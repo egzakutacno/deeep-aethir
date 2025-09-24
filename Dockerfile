@@ -43,6 +43,8 @@ WantedBy=multi-user.target' > /etc/systemd/system/riptide.service
 RUN echo '#!/bin/bash\n\
 cd /opt/aethir-checker\n\
 ./install.sh\n\
+# Disable Aethir service auto-start (we'\''ll start it manually via Riptide)\n\
+systemctl disable aethir-checker\n\
 # Enable Riptide service (but don'\''t start it yet)\n\
 systemctl enable riptide\n\
 exec /lib/systemd/systemd' > /start.sh && \
