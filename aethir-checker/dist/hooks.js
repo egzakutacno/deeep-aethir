@@ -107,6 +107,12 @@ async function setupAethirWallet(logger) {
               logger.info("Aethir prompt detected, sending wallet create command");
               aethirProcess.stdin.write("aethir wallet create\n");
               state = "waiting_for_keys";
+            } else if (trimmedLine.includes("Please create a wallet")) {
+              logger.info("Wallet creation message detected, waiting for Aethir prompt");
+            } else if (trimmedLine === "") {
+              logger.info("Empty line received, continuing to wait");
+            } else {
+              logger.info(`Unknown line in waiting_for_prompt state: "${trimmedLine}"`);
             }
             break;
           case "waiting_for_keys":
