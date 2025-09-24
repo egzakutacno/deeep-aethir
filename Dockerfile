@@ -22,11 +22,19 @@ WORKDIR /root
 # Copy the Aethir Checker CLI tarball
 COPY files/AethirCheckerCLI-linux-1.0.3.2.tar.gz /root/
 
-# Extract and install Aethir Checker CLI
+# Extract and manually install Aethir Checker CLI (skip install.sh to avoid systemd issues during build)
 RUN tar -xzvf AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
     cd AethirCheckerCLI-linux && \
-    chmod +x install.sh && \
-    ./install.sh && \
+    # Copy binaries to /usr/local/bin
+    cp AethirCheckerCLI /usr/local/bin/aethir-checker && \
+    cp AethirCheckerService /usr/local/bin/aethir-checker-service && \
+    # Make binaries executable
+    chmod +x /usr/local/bin/aethir-checker && \
+    chmod +x /usr/local/bin/aethir-checker-service && \
+    # Copy config files to /etc/aethir
+    mkdir -p /etc/aethir && \
+    cp -r config/* /etc/aethir/ && \
+    cp -r benchmark /etc/aethir/ && \
     cd /root && \
     rm -rf AethirCheckerCLI-linux-1.0.3.2.tar.gz AethirCheckerCLI-linux
 
@@ -43,10 +51,14 @@ RUN echo '[Unit]' > /etc/systemd/system/aethir-checker.service && \
     echo '[Service]' >> /etc/systemd/system/aethir-checker.service && \
     echo 'Type=simple' >> /etc/systemd/system/aethir-checker.service && \
     echo 'User=aethir' >> /etc/systemd/system/aethir-checker.service && \
+    echo 'Group=aethir' >> /etc/systemd/system/aethir-checker.service && \
     echo 'WorkingDirectory=/home/aethir' >> /etc/systemd/system/aethir-checker.service && \
-    echo 'ExecStart=/usr/local/bin/aethir-checker' >> /etc/systemd/system/aethir-checker.service && \
+    echo 'ExecStart=/usr/local/bin/aethir-checker-service' >> /etc/systemd/system/aethir-checker.service && \
+    echo 'Environment=HOME=/home/aethir' >> /etc/systemd/system/aethir-checker.service && \
     echo 'Restart=always' >> /etc/systemd/system/aethir-checker.service && \
     echo 'RestartSec=10' >> /etc/systemd/system/aethir-checker.service && \
+    echo 'StandardOutput=journal' >> /etc/systemd/system/aethir-checker.service && \
+    echo 'StandardError=journal' >> /etc/systemd/system/aethir-checker.service && \
     echo '' >> /etc/systemd/system/aethir-checker.service && \
     echo '[Install]' >> /etc/systemd/system/aethir-checker.service && \
     echo 'WantedBy=multi-user.target' >> /etc/systemd/system/aethir-checker.service
