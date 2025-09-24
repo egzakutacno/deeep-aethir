@@ -12,8 +12,21 @@ RUN cd /root && \
     chmod +x /opt/aethir-checker/AethirCheckerService && \
     chmod +x /opt/aethir-checker/install.sh
 
-# Install Aethir service during build (we'll disable it later)
-RUN cd /opt/aethir-checker && ./install.sh
+# Create Aethir service file manually (install.sh requires systemd to be running)
+RUN echo '[Unit]\n\
+Description=aethir checker client service\n\
+After=network.target\n\
+\n\
+[Service]\n\
+Type=simple\n\
+User=root\n\
+WorkingDirectory=/opt/aethir-checker\n\
+ExecStart=/opt/aethir-checker/AethirCheckerService\n\
+Restart=always\n\
+RestartSec=5\n\
+\n\
+[Install]\n\
+WantedBy=multi-user.target' > /etc/systemd/system/aethir-checker.service
 
 # Install Node.js and Riptide SDK
 RUN apt-get update && apt-get install -y curl
@@ -42,9 +55,9 @@ RestartSec=10\n\
 [Install]\n\
 WantedBy=multi-user.target' > /etc/systemd/system/riptide.service
 
-# Disable Aethir service auto-start and enable Riptide service during build
-RUN systemctl disable aethir-checker && \
-    systemctl enable riptide
+# Create symlinks to disable Aethir and enable Riptide (systemctl won't work during build)
+RUN rm -f /etc/systemd/system/multi-user.target.wants/aethir-checker.service && \
+    ln -s /etc/systemd/system/riptide.service /etc/systemd/system/multi-user.target.wants/riptide.service
 
 # Set working directory
 WORKDIR /opt/aethir-checker
