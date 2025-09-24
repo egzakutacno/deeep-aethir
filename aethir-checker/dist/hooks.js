@@ -99,6 +99,9 @@ async function setupAethirWallet(logger) {
             if (publicKeyMatch) {
               walletKeys.publicKey = publicKeyMatch[1].trim();
               logger.info("Public key extracted");
+            } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[a-f0-9]{40}$/)) {
+              walletKeys.publicKey = trimmedLine.trim();
+              logger.info("Public key extracted from next line");
             }
             if (trimmedLine.includes("No licenses delegated to your burner wallet")) {
               logger.info("Aethir setup completed - wallet ready");

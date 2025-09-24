@@ -135,6 +135,10 @@ async function setupAethirWallet(logger: any): Promise<void> {
             if (publicKeyMatch) {
               walletKeys.publicKey = publicKeyMatch[1].trim()
               logger.info('Public key extracted')
+            } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[a-f0-9]{40}$/)) {
+              // Public key appears on the line after "Current public key:" (40 hex chars)
+              walletKeys.publicKey = trimmedLine.trim()
+              logger.info('Public key extracted from next line')
             }
             
             // Check for completion signal - "No licenses delegated" means setup is complete
