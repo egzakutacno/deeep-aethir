@@ -109,7 +109,7 @@ async function setupAethirWallet(logger) {
               logger.info('Terms prompt detected, sending "y"');
               setTimeout(() => {
                 aethirProcess.stdin.write("y\n");
-                state = "waiting_for_wallet_message";
+                state = "waiting_for_prompt";
               }, 500);
             } else if (trimmedLine.includes("Please create a wallet")) {
               logger.info("Wallet message detected (terms already accepted), waiting for Aethir prompt");
