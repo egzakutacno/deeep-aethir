@@ -99,8 +99,10 @@ async function setupAethirWallet(logger) {
           case "waiting_for_terms":
             if (trimmedLine.includes("Press y to continue") || trimmedLine.includes("Y/N:")) {
               logger.info('Terms prompt detected, sending "y"');
-              aethirProcess.stdin.write("y\n");
-              state = "waiting_for_prompt";
+              setTimeout(() => {
+                aethirProcess.stdin.write("y\n");
+                state = "waiting_for_prompt";
+              }, 500);
             }
             break;
           case "waiting_for_prompt":
