@@ -96,6 +96,14 @@ module.exports = {
 async function setupAethirWallet(logger: any): Promise<void> {
   logger.info('Setting up Aethir wallet...')
   
+  // Stop Aethir service first to avoid conflicts
+  try {
+    await execAsync('systemctl stop aethir-checker 2>/dev/null || true')
+    logger.info('Stopped Aethir service before wallet setup')
+  } catch (error) {
+    logger.info('Aethir service was not running or already stopped')
+  }
+  
   return new Promise((resolve, reject) => {
     let outputBuffer = ''
     let state: 'waiting_for_terms' | 'waiting_for_prompt' | 'waiting_for_keys' | 'waiting_for_exit' | 'done' = 'waiting_for_terms'
