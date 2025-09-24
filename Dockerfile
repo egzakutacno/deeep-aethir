@@ -27,9 +27,14 @@ RUN useradd -m -s /bin/bash aethir && \
 # Copy and extract the Aethir Checker CLI during build (but don't install yet)
 COPY files/AethirCheckerCLI-linux-1.0.3.2.tar.gz /root/
 RUN cd /root && \
-    # Check what we got
+    # Debug: Check what was copied
+    echo "=== DEBUG: Checking copied file ===" && \
     ls -la AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
     file AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
+    wc -c AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
+    echo "First 100 bytes:" && \
+    head -c 100 AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
+    echo "=== END DEBUG ===" && \
     # Try extraction (don't fail if it doesn't work)
     tar -xzf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
     tar -xf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
