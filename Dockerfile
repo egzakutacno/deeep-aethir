@@ -12,6 +12,17 @@ RUN cd /root && \
     chmod +x /opt/aethir-checker/AethirCheckerService && \
     chmod +x /opt/aethir-checker/install.sh
 
+# Install Node.js and Riptide SDK
+RUN apt-get update && apt-get install -y curl
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+RUN apt-get install -y nodejs
+RUN npm install -g @deeep-network/riptide
+
+# Create Riptide service directory and files
+RUN mkdir -p /riptide
+COPY aethir-checker/riptide.config.json /riptide/
+COPY aethir-checker/dist/hooks.js /riptide/
+
 # Create startup script that installs Aethir service and starts systemd
 RUN echo '#!/bin/bash\n\
 cd /opt/aethir-checker\n\

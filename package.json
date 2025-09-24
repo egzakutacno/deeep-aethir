@@ -1,0 +1,21 @@
+{
+  "name": "aethir-checker-riptide",
+  "version": "1.0.0",
+  "description": "Aethir checker with Riptide SDK integration",
+  "main": "dist/hooks.js",
+  "scripts": {
+    "build": "tsc && tsup src/hooks.ts --format cjs --out-dir dist",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@deeep-network/riptide": "^0.2.11"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "tsup": "^8.5.0",
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
