@@ -98,7 +98,7 @@ async function setupAethirWallet(logger: any): Promise<void> {
         // State machine for handling prompts
         switch (state) {
           case 'waiting_for_terms':
-            if (trimmedLine.includes('Y/N:')) {
+            if (trimmedLine.includes('Press y to continue') || trimmedLine.includes('Y/N:')) {
               logger.info('Terms prompt detected, sending "y"')
               aethirProcess.stdin.write('y\n')
               state = 'waiting_for_prompt'
