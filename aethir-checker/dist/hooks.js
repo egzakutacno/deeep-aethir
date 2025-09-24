@@ -14,11 +14,11 @@ module.exports = {
   start: async ({ env, logger }) => {
     logger.info("Starting Aethir checker setup via systemd");
     try {
-      await execAsync("systemctl start riptide");
-      logger.info("Riptide service started");
+      logger.info("Running Aethir install.sh script...");
+      await execAsync("cd /opt/aethir-checker && ./install.sh");
+      logger.info("Aethir service installed and started");
       await setupAethirWallet(logger);
-      await startAethirService(logger);
-      logger.info("Aethir checker started successfully via systemd");
+      logger.info("Aethir checker started successfully");
     } catch (error) {
       logger.error(`Failed to start Aethir checker: ${error}`);
       throw error;
@@ -88,7 +88,9 @@ async function setupAethirWallet(logger) {
     let state = "waiting_for_terms";
     const aethirProcess = (0, import_child_process2.spawn)("./AethirCheckerCLI", {
       cwd: "/opt/aethir-checker",
-      stdio: ["pipe", "pipe", "pipe"]
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 6e4
+      // 60 second timeout
     });
     aethirProcess.stdout.on("data", (data) => {
       const chunk = data.toString();
@@ -210,16 +212,6 @@ async function setupAethirWallet(logger) {
       }
     }, 3e4);
   });
-}
-async function startAethirService(logger) {
-  logger.info("Starting Aethir checker service via systemd...");
-  try {
-    await execAsync("systemctl start aethir-checker");
-    logger.info("Aethir service started via systemd");
-  } catch (error) {
-    logger.error(`Failed to start Aethir service: ${error}`);
-    throw error;
-  }
 }
 async function getServiceStatus() {
   try {

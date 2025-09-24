@@ -20,17 +20,15 @@ module.exports = {
     logger.info('Starting Aethir checker setup via systemd')
     
     try {
-      // Step 1: Start Riptide service
-      await execAsync('systemctl start riptide')
-      logger.info('Riptide service started')
+      // Step 1: Run install.sh to properly set up the Aethir service
+      logger.info('Running Aethir install.sh script...')
+      await execAsync('cd /opt/aethir-checker && ./install.sh')
+      logger.info('Aethir service installed and started')
       
-      // Step 2: Accept terms and create wallet
+      // Step 2: Accept terms and create wallet via CLI
       await setupAethirWallet(logger)
       
-      // Step 3: Start Aethir service via systemd
-      await startAethirService(logger)
-      
-      logger.info('Aethir checker started successfully via systemd')
+      logger.info('Aethir checker started successfully')
     } catch (error) {
       logger.error(`Failed to start Aethir checker: ${error}`)
       throw error
@@ -122,7 +120,8 @@ async function setupAethirWallet(logger: any): Promise<void> {
     // Spawn the Aethir CLI process
     const aethirProcess = spawn('./AethirCheckerCLI', {
       cwd: '/opt/aethir-checker',
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 60000 // 60 second timeout
     })
     
     // Handle stdout line by line
