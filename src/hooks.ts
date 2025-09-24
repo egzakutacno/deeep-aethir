@@ -1,5 +1,6 @@
 import type { HookContext } from '@deeep-network/riptide'
 import { exec } from 'child_process'
+import { spawn } from 'child_process'
 import { promisify } from 'util'
 
 const execAsync = promisify(exec)
@@ -69,31 +70,106 @@ module.exports = {
 async function setupAethirWallet(logger: any): Promise<void> {
   logger.info('Setting up Aethir wallet...')
   
-  try {
-    // Use a simple approach - just send the commands with proper timing
-    logger.info('Creating input file with proper timing...')
-    await execAsync('echo -e "y\\n\\n\\naethir wallet create" > /tmp/aethir_input.txt')
+  return new Promise((resolve, reject) => {
+    let outputBuffer = ''
+    let state: 'waiting_for_terms' | 'waiting_for_prompt' | 'waiting_for_keys' | 'done' = 'waiting_for_terms'
     
-    logger.info('Running Aethir setup...')
-    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && timeout 20 ./AethirCheckerCLI < /tmp/aethir_input.txt"')
+    // Spawn the Aethir CLI process
+    const aethirProcess = spawn('./AethirCheckerCLI', {
+      cwd: '/opt/aethir-checker',
+      stdio: ['pipe', 'pipe', 'pipe']
+    })
     
-    // Extract wallet keys from output
-    const privateKeyMatch = stdout.match(/Current private key:\s*([^\n]+)/)
-    const publicKeyMatch = stdout.match(/Current public key:\s*([^\n]+)/)
+    // Handle stdout line by line
+    aethirProcess.stdout.on('data', (data: Buffer) => {
+      const chunk = data.toString()
+      outputBuffer += chunk
+      
+      // Log all output for debugging
+      logger.info(`[AETHIR SETUP] ${chunk.trim()}`)
+      
+      // Process line by line
+      const lines = outputBuffer.split('\n')
+      outputBuffer = lines.pop() || '' // Keep incomplete line in buffer
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim()
+        
+        // State machine for handling prompts
+        switch (state) {
+          case 'waiting_for_terms':
+            if (trimmedLine.includes('Y/N:')) {
+              logger.info('Terms prompt detected, sending "y"')
+              aethirProcess.stdin.write('y\n')
+              state = 'waiting_for_prompt'
+            }
+            break
+            
+          case 'waiting_for_prompt':
+            if (trimmedLine.includes('Aethir>')) {
+              logger.info('Aethir prompt detected, sending wallet create command')
+              aethirProcess.stdin.write('aethir wallet create\n')
+              state = 'waiting_for_keys'
+            }
+            break
+            
+          case 'waiting_for_keys':
+            // Look for wallet keys in the output
+            const privateKeyMatch = trimmedLine.match(/Current private key:\s*(.+)/)
+            const publicKeyMatch = trimmedLine.match(/Current public key:\s*(.+)/)
+            
+            if (privateKeyMatch) {
+              walletKeys.privateKey = privateKeyMatch[1].trim()
+              logger.info('Private key extracted')
+            }
+            
+            if (publicKeyMatch) {
+              walletKeys.publicKey = publicKeyMatch[1].trim()
+              logger.info('Public key extracted')
+            }
+            
+            // Check if we have both keys
+            if (walletKeys.privateKey && walletKeys.publicKey) {
+              logger.info('Wallet keys extracted successfully')
+              state = 'done'
+              aethirProcess.kill('SIGTERM')
+            }
+            break
+        }
+      }
+    })
     
-    if (privateKeyMatch && publicKeyMatch) {
-      walletKeys.privateKey = privateKeyMatch[1].trim()
-      walletKeys.publicKey = publicKeyMatch[1].trim()
-      logger.info('Wallet keys extracted successfully')
-    } else {
-      logger.error('Failed to extract wallet keys from output')
-      logger.error(`Full output: ${stdout}`)
-      throw new Error('Wallet key extraction failed')
-    }
-  } catch (error) {
-    logger.error(`Aethir setup failed: ${error}`)
-    throw error
-  }
+    // Handle stderr
+    aethirProcess.stderr.on('data', (data: Buffer) => {
+      logger.error(`[AETHIR ERROR] ${data.toString()}`)
+    })
+    
+    // Handle process exit
+    aethirProcess.on('close', (code: number) => {
+      if (state === 'done' && walletKeys.privateKey && walletKeys.publicKey) {
+        logger.info('Aethir setup completed successfully')
+        resolve()
+      } else {
+        logger.error(`Aethir process exited with code ${code}`)
+        reject(new Error(`Aethir setup failed with exit code ${code}`))
+      }
+    })
+    
+    // Handle process errors
+    aethirProcess.on('error', (error: Error) => {
+      logger.error(`Aethir process error: ${error.message}`)
+      reject(error)
+    })
+    
+    // Set timeout to prevent hanging
+    setTimeout(() => {
+      if (state !== 'done') {
+        logger.error('Aethir setup timed out')
+        aethirProcess.kill('SIGTERM')
+        reject(new Error('Aethir setup timed out'))
+      }
+    }, 30000) // 30 second timeout
+  })
 }
 
 async function startAethirService(logger: any): Promise<void> {
