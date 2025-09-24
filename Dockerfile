@@ -67,8 +67,20 @@ RUN echo '[Unit]' > /etc/systemd/system/aethir-checker.service && \
 # Enable the service
 RUN systemctl enable aethir-checker
 
+# Create startup script to ensure proper systemd initialization
+RUN echo '#!/bin/bash' > /usr/local/bin/start-systemd.sh && \
+    echo 'set -e' >> /usr/local/bin/start-systemd.sh && \
+    echo '' >> /usr/local/bin/start-systemd.sh && \
+    echo '# Ensure required directories exist' >> /usr/local/bin/start-systemd.sh && \
+    echo 'mkdir -p /run/lock' >> /usr/local/bin/start-systemd.sh && \
+    echo 'mkdir -p /var/log/journal' >> /usr/local/bin/start-systemd.sh && \
+    echo '' >> /usr/local/bin/start-systemd.sh && \
+    echo '# Start systemd' >> /usr/local/bin/start-systemd.sh && \
+    echo 'exec /lib/systemd/systemd' >> /usr/local/bin/start-systemd.sh && \
+    chmod +x /usr/local/bin/start-systemd.sh
+
 # Expose any necessary ports (if Aethir Checker uses any)
 # EXPOSE 8080
 
-# Set the entrypoint to systemd
-ENTRYPOINT ["/lib/systemd/systemd"]
+# Set the entrypoint to our startup script
+ENTRYPOINT ["/usr/local/bin/start-systemd.sh"]

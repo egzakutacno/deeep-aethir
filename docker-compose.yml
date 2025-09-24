@@ -7,7 +7,7 @@ services:
     privileged: true
     cgroupns: host
     volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup
     tmpfs:
       - /run
       - /run/lock

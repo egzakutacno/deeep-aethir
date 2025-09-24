@@ -21,7 +21,7 @@ docker build -t aethir-checker:latest .
 
 ```bash
 docker run --detach --privileged --cgroupns=host \
-  --volume=/sys/fs/cgroup:/sys/fs/cgroup:ro \
+  --volume=/sys/fs/cgroup:/sys/fs/cgroup \
   --tmpfs /run --tmpfs /run/lock --tmpfs /tmp --tmpfs /var/log/journal \
   --name aethir-checker \
   aethir-checker:latest
@@ -71,7 +71,7 @@ aethir-checker
 
 - **Privileged Mode**: Required for systemd to function
 - **CGroup Namespace**: Must be set to host
-- **Volume Mount**: `/sys/fs/cgroup` must be mounted read-only
+- **Volume Mount**: `/sys/fs/cgroup` must be mounted (read-write)
 - **Tmpfs Mounts**: Required for `/run`, `/run/lock`, `/tmp`, and `/var/log/journal`
 
 ## Troubleshooting
