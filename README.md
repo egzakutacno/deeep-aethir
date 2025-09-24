@@ -1,30 +1,8 @@
-# Aethir Checker Node - Docker Setup
+# Aethir Checker Node - Docker Image
 
-This repository contains the Docker setup for running Aethir checker nodes using systemd-enabled containers.
+This repository contains a complete Docker image with Aethir checker node pre-installed and ready to run.
 
-## Prerequisites
-
-1. Docker installed on your VPS
-2. The Aethir checker CLI tar file: `AethirCheckerCLI-linux-1.0.3.2.tar.gz` placed in `/root/` on your VPS
-
-## Quick Setup
-
-Run the setup script:
-
-```bash
-python3 aethir_setup.py
-```
-
-The script will:
-1. Build the Docker image
-2. Create and start a container with proper systemd support
-3. Copy the Aethir tar file into the container
-4. Extract and install the Aethir checker software
-5. Drop you into an interactive shell
-
-## Manual Setup
-
-If you prefer to run commands manually:
+## Quick Start
 
 ### 1. Build the Docker image
 ```bash
@@ -39,28 +17,42 @@ docker run --privileged --cgroupns=host \
     -d aethir-checker
 ```
 
-### 3. Copy the Aethir tar file
+### 3. Access the container
 ```bash
-docker cp /root/AethirCheckerCLI-linux-1.0.3.2.tar.gz aethir-node:/root/
+docker exec -it aethir-node bash -c 'cd /opt/aethir-checker && bash'
 ```
 
-### 4. Install Aethir inside the container
+## What's Included
+
+- **Base Image**: Ubuntu 22.04 LTS with systemd support
+- **Aethir Checker CLI**: Pre-installed and configured
+- **Systemd Service**: Aethir checker service ready to run
+- **Automatic Setup**: Installation happens at container startup
+
+## Key Features
+
+- **Complete Image**: Everything included - no external dependencies
+- **Systemd Integration**: Proper service management with systemd
+- **Ready to Run**: Aethir checker starts automatically
+- **Container Flags**: Uses proper `--privileged` and `--cgroupns=host` for systemd
+
+## Container Management
+
+### Check service status
 ```bash
-docker exec aethir-node bash -c 'cd /root && tar -xzvf AethirCheckerCLI-linux-1.0.3.2.tar.gz && cd AethirCheckerCLI-linux && ./install.sh'
+docker exec aethir-node systemctl status aethir-checker
 ```
 
-### 5. Access the container
+### View logs
 ```bash
-docker exec -it aethir-node bash -c 'cd /root/AethirCheckerCLI-linux && bash'
+docker exec aethir-node journalctl -u aethir-checker -f
 ```
 
-## Key Points
-
-- The installation happens **after** container startup when systemd is running
-- Uses `--privileged` and `--cgroupns=host` flags for proper systemd support
-- The Aethir service will be installed and started automatically
-- Container runs systemd as PID 1 for proper service management
+### Stop container
+```bash
+docker stop aethir-node
+```
 
 ## Next Steps
 
-Once the Aethir checker is running, we'll integrate it with the Riptide SDK for NerdNode's container orchestration platform.
+This image is ready for integration with the Riptide SDK for NerdNode's container orchestration platform.
