@@ -108,24 +108,20 @@ async function setupAethirWallet(logger) {
             }
             break;
           case "waiting_for_keys":
-            const privateKeyMatch = trimmedLine.match(/Current private key:\s*(.*)/);
-            const publicKeyMatch = trimmedLine.match(/Current public key:\s*(.+)/);
+            const privateKeyMatch = trimmedLine.match(/Current private key:\s*$/);
+            const publicKeyMatch = trimmedLine.match(/Current public key:\s*$/);
             if (privateKeyMatch) {
-              if (privateKeyMatch[1].trim()) {
-                walletKeys.privateKey = privateKeyMatch[1].trim();
-              } else {
-                walletKeys.privateKey = "";
-              }
+              walletKeys.privateKey = "";
               logger.info("Private key start detected");
             } else if (walletKeys.privateKey !== void 0 && !walletKeys.publicKey && trimmedLine.match(/^[A-Za-z0-9+/=\s-]+$/)) {
               walletKeys.privateKey += trimmedLine;
+              logger.info("Collecting private key line");
             }
             if (publicKeyMatch) {
-              walletKeys.publicKey = publicKeyMatch[1].trim();
-              logger.info("Public key extracted");
+              logger.info("Public key label detected");
             } else if (walletKeys.privateKey && !walletKeys.publicKey && trimmedLine.match(/^[a-f0-9]{40}$/)) {
               walletKeys.publicKey = trimmedLine.trim();
-              logger.info("Public key extracted from next line");
+              logger.info("Public key extracted: " + walletKeys.publicKey);
             }
             if (trimmedLine.includes("No licenses delegated to your burner wallet")) {
               logger.info("Aethir setup completed - wallet ready");
