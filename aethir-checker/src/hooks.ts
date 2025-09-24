@@ -145,8 +145,8 @@ async function setupAethirWallet(logger: any): Promise<void> {
             
           case 'waiting_for_prompt':
             logger.info(`Waiting for prompt, current line: "${trimmedLine}"`)
-            if (trimmedLine.includes('Please create a wallet') || trimmedLine.includes('Aethir>')) {
-              logger.info('Wallet creation prompt detected, sending wallet create command')
+            if (trimmedLine.includes('Aethir>')) {
+              logger.info('Aethir prompt detected, sending wallet create command')
               aethirProcess.stdin.write('aethir wallet create\n')
               state = 'waiting_for_keys'
             }
