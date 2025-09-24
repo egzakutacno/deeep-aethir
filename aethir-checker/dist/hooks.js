@@ -73,13 +73,16 @@ module.exports = {
 async function setupAethirWallet(logger) {
   logger.info("Setting up Aethir wallet...");
   try {
+    logger.info("Attempting to stop Aethir service...");
     await execAsync("systemctl stop aethir-checker 2>/dev/null || true");
     logger.info("Stopped Aethir service before wallet setup");
+    logger.info("Attempting to kill existing CLI processes...");
     await execAsync("ps aux | grep AethirCheckerCLI | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true");
     logger.info("Killed existing CLI processes");
   } catch (error) {
     logger.info("Aethir service/processes were not running or already stopped");
   }
+  logger.info("About to spawn Aethir CLI process...");
   return new Promise((resolve, reject) => {
     let outputBuffer = "";
     let state = "waiting_for_terms";
