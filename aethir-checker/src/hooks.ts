@@ -20,10 +20,14 @@ module.exports = {
     logger.info('Starting Aethir checker setup via systemd')
     
     try {
-      // Step 1: Accept terms and create wallet
+      // Step 1: Start Riptide service
+      await execAsync('systemctl start riptide')
+      logger.info('Riptide service started')
+      
+      // Step 2: Accept terms and create wallet
       await setupAethirWallet(logger)
       
-      // Step 2: Start Aethir service via systemd
+      // Step 3: Start Aethir service via systemd
       await startAethirService(logger)
       
       logger.info('Aethir checker started successfully via systemd')

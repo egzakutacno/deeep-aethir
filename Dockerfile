@@ -43,9 +43,8 @@ WantedBy=multi-user.target' > /etc/systemd/system/riptide.service
 RUN echo '#!/bin/bash\n\
 cd /opt/aethir-checker\n\
 ./install.sh\n\
-# Enable and start Riptide service\n\
+# Enable Riptide service (but don'\''t start it yet)\n\
 systemctl enable riptide\n\
-systemctl start riptide\n\
 exec /lib/systemd/systemd' > /start.sh && \
     chmod +x /start.sh
 

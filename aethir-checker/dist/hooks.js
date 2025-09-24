@@ -14,6 +14,8 @@ module.exports = {
   start: async ({ env, logger }) => {
     logger.info("Starting Aethir checker setup via systemd");
     try {
+      await execAsync("systemctl start riptide");
+      logger.info("Riptide service started");
       await setupAethirWallet(logger);
       await startAethirService(logger);
       logger.info("Aethir checker started successfully via systemd");
