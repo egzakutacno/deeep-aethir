@@ -120,7 +120,7 @@ async function setupAethirWallet(logger: any): Promise<void> {
   
   return new Promise((resolve, reject) => {
     let outputBuffer = ''
-    let state: 'waiting_for_terms' | 'waiting_for_wallet_message' | 'waiting_for_prompt' | 'waiting_for_keys' | 'waiting_for_exit' | 'done' = 'waiting_for_terms'
+    let state: 'waiting_for_terms' | 'waiting_for_prompt' | 'waiting_for_keys' | 'waiting_for_exit' | 'done' = 'waiting_for_terms'
     
     // Spawn the Aethir CLI process
     const aethirProcess = spawn('./AethirCheckerCLI', {
@@ -160,17 +160,6 @@ async function setupAethirWallet(logger: any): Promise<void> {
             }
             break
             
-          case 'waiting_for_wallet_message':
-            logger.info(`Waiting for wallet message, current line: "${trimmedLine}"`)
-            if (trimmedLine.includes('Please create a wallet')) {
-              logger.info('Wallet creation message detected, waiting for Aethir prompt')
-              state = 'waiting_for_prompt'
-            } else if (trimmedLine === '') {
-              logger.info('Empty line received, continuing to wait for wallet message')
-            } else {
-              logger.info(`Other line in waiting_for_wallet_message state: "${trimmedLine}"`)
-            }
-            break
             
           case 'waiting_for_prompt':
             logger.info(`Waiting for prompt, current line: "${trimmedLine}"`)

@@ -116,17 +116,6 @@ async function setupAethirWallet(logger) {
               state = "waiting_for_prompt";
             }
             break;
-          case "waiting_for_wallet_message":
-            logger.info(`Waiting for wallet message, current line: "${trimmedLine}"`);
-            if (trimmedLine.includes("Please create a wallet")) {
-              logger.info("Wallet creation message detected, waiting for Aethir prompt");
-              state = "waiting_for_prompt";
-            } else if (trimmedLine === "") {
-              logger.info("Empty line received, continuing to wait for wallet message");
-            } else {
-              logger.info(`Other line in waiting_for_wallet_message state: "${trimmedLine}"`);
-            }
-            break;
           case "waiting_for_prompt":
             logger.info(`Waiting for prompt, current line: "${trimmedLine}"`);
             if (trimmedLine.includes("Aethir>")) {
