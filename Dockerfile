@@ -12,6 +12,9 @@ RUN cd /root && \
     chmod +x /opt/aethir-checker/AethirCheckerService && \
     chmod +x /opt/aethir-checker/install.sh
 
+# Install Aethir service during build (we'll disable it later)
+RUN cd /opt/aethir-checker && ./install.sh
+
 # Install Node.js and Riptide SDK
 RUN apt-get update && apt-get install -y curl
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
@@ -39,19 +42,12 @@ RestartSec=10\n\
 [Install]\n\
 WantedBy=multi-user.target' > /etc/systemd/system/riptide.service
 
-# Create startup script that installs Aethir service and starts systemd
-RUN echo '#!/bin/bash\n\
-cd /opt/aethir-checker\n\
-./install.sh\n\
-# Disable Aethir service auto-start (we'\''ll start it manually via Riptide)\n\
-systemctl disable aethir-checker\n\
-# Enable Riptide service (but don'\''t start it yet)\n\
-systemctl enable riptide\n\
-exec /lib/systemd/systemd' > /start.sh && \
-    chmod +x /start.sh
+# Disable Aethir service auto-start and enable Riptide service during build
+RUN systemctl disable aethir-checker && \
+    systemctl enable riptide
 
 # Set working directory
 WORKDIR /opt/aethir-checker
 
-# Start with systemd as init system
-CMD ["/start.sh"]
+# Start with systemd as init system (like your original working setup)
+CMD ["/lib/systemd/systemd"]
