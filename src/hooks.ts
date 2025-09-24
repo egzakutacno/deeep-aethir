@@ -70,7 +70,8 @@ async function setupAethirWallet(logger: any): Promise<void> {
   logger.info('Setting up Aethir wallet...')
   
   try {
-    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"y\\" | ./AethirCheckerCLI"')
+    // Send both "y" to accept terms and "aethir wallet create" to create wallet
+    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && echo -e \\"y\\naethir wallet create\\" | ./AethirCheckerCLI"')
     
     // Extract wallet keys from output
     const privateKeyMatch = stdout.match(/Current private key:\s*([^\n]+)/)
