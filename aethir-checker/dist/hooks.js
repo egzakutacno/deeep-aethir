@@ -201,30 +201,41 @@ async function getCurrentWalletKeys(logger) {
   return new Promise((resolve) => {
     let outputBuffer = "";
     let keysFound = false;
-    const aethirProcess = (0, import_child_process2.spawn)("bash", ["-c", 'cd /opt/aethir-checker && echo "aethir wallet export" | timeout 10 ./AethirCheckerCLI'], {
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    aethirProcess.stdout?.on("data", (data) => {
-      outputBuffer += data.toString();
-      const privateKeyMatch = outputBuffer.match(/Current private key:\s*([^\n]+)/);
-      const publicKeyMatch = outputBuffer.match(/Current public key:\s*([^\n]+)/);
-      if (privateKeyMatch && publicKeyMatch && !keysFound) {
-        keysFound = true;
-        aethirProcess.kill("SIGTERM");
-        resolve({
-          privateKey: privateKeyMatch[1].trim(),
-          publicKey: publicKeyMatch[1].trim()
+    execAsync("ps aux | grep AethirCheckerCLI | grep -v grep | awk '{print $2}' | xargs kill -9 2>/dev/null || true").then(() => {
+      setTimeout(() => {
+        const aethirProcess = (0, import_child_process2.spawn)("bash", ["-c", 'cd /opt/aethir-checker && echo "aethir wallet export" | timeout 10 ./AethirCheckerCLI'], {
+          stdio: ["pipe", "pipe", "pipe"]
         });
-      }
-    });
-    aethirProcess.on("close", () => {
-      if (!keysFound) {
-        logger.warn("Could not extract wallet keys from export");
-        resolve({});
-      }
-    });
-    aethirProcess.on("error", (error) => {
-      logger.error(`Failed to get wallet keys: ${error}`);
+        aethirProcess.stdout?.on("data", (data) => {
+          outputBuffer += data.toString();
+          const privateKeyMatch = outputBuffer.match(/Current private key:\s*\n([^\n]+)/);
+          const publicKeyMatch = outputBuffer.match(/Current public key:\s*\n([^\n]+)/);
+          if (privateKeyMatch && publicKeyMatch && !keysFound) {
+            keysFound = true;
+            logger.info("Wallet keys found, sending exit command");
+            aethirProcess.stdin.write("aethir exit\n");
+            setTimeout(() => {
+              aethirProcess.kill("SIGTERM");
+              resolve({
+                privateKey: privateKeyMatch[1].trim(),
+                publicKey: publicKeyMatch[1].trim()
+              });
+            }, 1e3);
+          }
+        });
+        aethirProcess.on("close", () => {
+          if (!keysFound) {
+            logger.warn("Could not extract wallet keys from export");
+            resolve({});
+          }
+        });
+        aethirProcess.on("error", (error) => {
+          logger.error(`Failed to get wallet keys: ${error}`);
+          resolve({});
+        });
+      }, 500);
+    }).catch((error) => {
+      logger.error(`Failed to kill existing processes: ${error}`);
       resolve({});
     });
   });
