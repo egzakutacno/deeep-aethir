@@ -70,9 +70,12 @@ async function setupAethirWallet(logger: any): Promise<void> {
   logger.info('Setting up Aethir wallet...')
   
   try {
-    // Send both commands to the SAME CLI instance with proper delays
-    logger.info('Accepting terms and creating wallet...')
-    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && (echo \\"y\\"; sleep 2; echo \\"aethir wallet create\\") | timeout 15 ./AethirCheckerCLI"')
+    // Create a simple input file with both commands
+    logger.info('Creating input file...')
+    await execAsync('echo -e "y\\naethir wallet create" > /tmp/aethir_input.txt')
+    
+    logger.info('Running Aethir setup with input file...')
+    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && timeout 15 ./AethirCheckerCLI < /tmp/aethir_input.txt"')
     
     // Extract wallet keys from output
     const privateKeyMatch = stdout.match(/Current private key:\s*([^\n]+)/)
