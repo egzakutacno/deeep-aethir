@@ -70,24 +70,13 @@ async function setupAethirWallet(logger: any): Promise<void> {
   logger.info('Setting up Aethir wallet...')
   
   try {
-    // First, accept terms with "y" and wait
-    logger.info('Accepting terms of service...')
-    const { stdout: termsOutput } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"y\\" | timeout 10 ./AethirCheckerCLI"')
-    logger.info('Terms accepted, waiting for wallet prompt...')
-    
-    // Wait a moment for the CLI to be ready
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // Now create wallet with "aethir wallet create"
-    logger.info('Creating wallet...')
-    const { stdout: walletOutput } = await execAsync('bash -c "cd /opt/aethir-checker && echo \\"aethir wallet create\\" | timeout 10 ./AethirCheckerCLI"')
-    
-    // Combine outputs to extract wallet keys
-    const fullOutput = termsOutput + walletOutput
+    // Send both commands to the SAME CLI instance with proper delays
+    logger.info('Accepting terms and creating wallet...')
+    const { stdout } = await execAsync('bash -c "cd /opt/aethir-checker && (echo \\"y\\"; sleep 2; echo \\"aethir wallet create\\") | timeout 15 ./AethirCheckerCLI"')
     
     // Extract wallet keys from output
-    const privateKeyMatch = fullOutput.match(/Current private key:\s*([^\n]+)/)
-    const publicKeyMatch = fullOutput.match(/Current public key:\s*([^\n]+)/)
+    const privateKeyMatch = stdout.match(/Current private key:\s*([^\n]+)/)
+    const publicKeyMatch = stdout.match(/Current public key:\s*([^\n]+)/)
     
     if (privateKeyMatch && publicKeyMatch) {
       walletKeys.privateKey = privateKeyMatch[1].trim()
@@ -95,7 +84,7 @@ async function setupAethirWallet(logger: any): Promise<void> {
       logger.info('Wallet keys extracted successfully')
     } else {
       logger.error('Failed to extract wallet keys from output')
-      logger.error(`Full output: ${fullOutput}`)
+      logger.error(`Full output: ${stdout}`)
       throw new Error('Wallet key extraction failed')
     }
   } catch (error) {
