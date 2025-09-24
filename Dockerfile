@@ -24,11 +24,9 @@ RUN useradd -m -s /bin/bash aethir && \
     mkdir -p /home/aethir/.aethir && \
     chown -R aethir:aethir /home/aethir/.aethir
 
-# Download and extract the Aethir Checker CLI during build (but don't install yet)
+# Copy and extract the Aethir Checker CLI during build (but don't install yet)
+COPY files/AethirCheckerCLI-linux-1.0.3.2.tar.gz /root/
 RUN cd /root && \
-    # Download the file
-    curl -L -o AethirCheckerCLI-linux-1.0.3.2.tar.gz \
-    https://github.com/Aethir/AethirCheckerCLI/releases/download/v1.0.3.2/AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
     # Check what we got
     ls -la AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
     file AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
