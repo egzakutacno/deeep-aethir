@@ -22,8 +22,9 @@ RUN useradd -m -s /bin/bash aethir && \
     mkdir -p /home/aethir/.aethir && \
     chown -R aethir:aethir /home/aethir/.aethir
 
-# Copy the Aethir Checker CLI tarball into the image (but don't install yet)
-COPY files/AethirCheckerCLI-linux-1.0.3.2.tar.gz /root/
+# Download the Aethir Checker CLI tarball during build (but don't install yet)
+RUN curl -L -o /root/AethirCheckerCLI-linux-1.0.3.2.tar.gz \
+    https://github.com/Aethir/AethirCheckerCLI/releases/download/v1.0.3.2/AethirCheckerCLI-linux-1.0.3.2.tar.gz
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]
