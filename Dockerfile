@@ -13,6 +13,7 @@ RUN apt-get update && \
     wget \
     tar \
     gzip \
+    unzip \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -22,9 +23,16 @@ RUN useradd -m -s /bin/bash aethir && \
     mkdir -p /home/aethir/.aethir && \
     chown -R aethir:aethir /home/aethir/.aethir
 
-# Download the Aethir Checker CLI tarball during build (but don't install yet)
-RUN curl -L -o /root/AethirCheckerCLI-linux-1.0.3.2.tar.gz \
-    https://github.com/Aethir/AethirCheckerCLI/releases/download/v1.0.3.2/AethirCheckerCLI-linux-1.0.3.2.tar.gz
+# Download and extract the Aethir Checker CLI during build (but don't install yet)
+RUN cd /root && \
+    curl -L -o AethirCheckerCLI-linux-1.0.3.2.tar.gz \
+    https://github.com/Aethir/AethirCheckerCLI/releases/download/v1.0.3.2/AethirCheckerCLI-linux-1.0.3.2.tar.gz && \
+    # Try different extraction methods
+    (tar -xzf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
+     tar -xf AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
+     unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz) && \
+    # Clean up the tarball
+    rm AethirCheckerCLI-linux-1.0.3.2.tar.gz
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]
