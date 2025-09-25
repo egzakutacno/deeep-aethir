@@ -38,29 +38,24 @@ expect {
     }
 }
 
-# Wait for instructions and send wallet create command
+# Wait for the Aethir> prompt and send wallet create command
 expect {
-    -re "Please create a wallet" {
+    -re "Aethir>" {
         send "aethir wallet create\r"
         exp_continue
     }
 }
 
-# Wait for wallet creation to complete
-expect {
-    -re "Aethir>" {
-        send "aethir wallet export\r"
-        exp_continue
-    }
-}
+# Wait for wallet creation to complete and capture keys
+set priv_key ""
+set pub_key ""
 
-# Capture the export output
 expect {
-    -re "Private key: (.*)" {
+    -re "Current private key:\r?\n(.*?)\r?\n" {
         set priv_key $expect_out(1,string)
         exp_continue
     }
-    -re "Public key: (.*)" {
+    -re "Current public key:\r?\n(.*?)\r?\n" {
         set pub_key $expect_out(1,string)
         exp_continue
     }
@@ -71,6 +66,10 @@ expect {
         close $wallet_file
         send "exit\r"
         expect eof
+    }
+    timeout {
+        puts "Timeout waiting for wallet creation"
+        exit 1
     }
 }
 EOF
