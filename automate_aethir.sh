@@ -31,15 +31,19 @@ send "y\r"
 expect "Aethir>"
 send "aethir wallet create\r"
 
-# Wait for "Current private key:" then skip the empty line and capture the key
+# Wait for "Current private key:" then capture the key (skip the empty line)
 expect "Current private key:"
 expect "\r\n"
 set privkey [gets stdin]
 
-# Wait for "Current public key:" then skip the empty line and capture the key  
+# Wait for "Current public key:" then capture the key (skip the empty line)
 expect "Current public key:"
 expect "\r\n"
 set pubkey [gets stdin]
+
+# Debug: Print what we captured
+puts "DEBUG: Captured private key: $privkey"
+puts "DEBUG: Captured public key: $pubkey"
 
 # Save to JSON file inside container
 set fp [open "/root/wallet.json" "w"]
