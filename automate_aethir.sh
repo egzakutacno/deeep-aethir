@@ -35,8 +35,10 @@ expect {
 # Step 2 — Wait for "Aethir> " prompt then send wallet creation command
 expect {
     -re "Aethir> " {
+        send_user "DEBUG: Detected Aethir> prompt, sending command...\n"
         sleep 1
         send "aethir wallet create\r"
+        send_user "DEBUG: Command sent: aethir wallet create\n"
     }
 }
 
