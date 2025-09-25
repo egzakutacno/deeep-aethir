@@ -96,13 +96,22 @@ EOF
 
 echo "[3/3] Extracting wallet keys from interaction log..."
 
-# Extract keys from the log file
+# Debug: Check if log file exists
+echo "DEBUG: Checking for log file..."
 if [ -f "/tmp/aethir_interaction.log" ]; then
+    echo "✅ Log file exists"
+    echo "DEBUG: Log file contents:"
+    cat /tmp/aethir_interaction.log
+    echo "DEBUG: End of log file"
+    
     # Extract private key (the line after "Current private key:")
     PRIV_KEY=$(grep -A1 "Current private key:" /tmp/aethir_interaction.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     
     # Extract public key (the line after "Current public key:")
     PUB_KEY=$(grep -A1 "Current public key:" /tmp/aethir_interaction.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    echo "DEBUG: Extracted private key: '$PRIV_KEY'"
+    echo "DEBUG: Extracted public key: '$PUB_KEY'"
     
     # Save to JSON file
     if [ ! -z "$PRIV_KEY" ] && [ ! -z "$PUB_KEY" ]; then
@@ -123,6 +132,8 @@ JSON_EOF
     fi
 else
     echo "❌ Interaction log not found at /tmp/aethir_interaction.log"
+    echo "DEBUG: Available log files:"
+    ls -la /tmp/*.log 2>/dev/null || echo "No log files found"
 fi
 
 echo "[3/3] Aethir Checker automation complete."
