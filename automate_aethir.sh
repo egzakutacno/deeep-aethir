@@ -32,9 +32,9 @@ expect {
     }
 }
 
-# Step 2 — Wait for "Initializing..." then wait for the next line of text
+# Step 2 — Wait for "Initializing..." then sleep 10 seconds
 expect "Initializing..."
-expect -re ".*"
+sleep 10
 
 # Step 3 — Send wallet creation command once
 send "aethir wallet create\r"
