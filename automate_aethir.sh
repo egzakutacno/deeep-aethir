@@ -27,9 +27,20 @@ spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
 expect "Y/N:"
 send "y\r"
 
-# Wait for wallet prompt
-expect "Aethir>"
-send "aethir wallet create\r"
+# Wait for wallet prompt (handle terminal control sequences)
+expect {
+    "Aethir>" {
+        send "aethir wallet create\r"
+    }
+    -re "\\^\\[\\[.*R" {
+        # Skip terminal control sequences like ^[[73;1R
+        exp_continue
+    }
+    timeout {
+        puts "Timeout waiting for Aethir prompt"
+        exit 1
+    }
+}
 
 # Wait for "Current private key:" then capture the key (skip the empty line)
 expect "Current private key:"
