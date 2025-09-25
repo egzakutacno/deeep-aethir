@@ -37,10 +37,18 @@ expect {
 expect {
     -re "Aethir> " {
         send "aethir wallet create\r"
+        exp_continue
     }
 }
 
-# Keep session interactive (optional)
+# Step 3 — Wait until wallet creation completes
+expect {
+    -re "Aethir> " {
+        send_user "✅ Wallet creation complete.\n"
+    }
+}
+
+# Optional — keep CLI interactive after automation
 interact
 EOF
 
