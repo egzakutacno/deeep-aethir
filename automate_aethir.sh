@@ -22,15 +22,25 @@ fi
 
 # Automate Aethir CLI interaction
 expect << 'EOF'
+set timeout 60
 spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
+
+send_user "DEBUG: CLI spawned, waiting for Y/N prompt...\n"
 
 # Step 1 — Accept Terms of Service once
 expect {
     -re "Y/N:" {
+        send_user "DEBUG: Detected Y/N prompt, sending y...\n"
         sleep 1
         send "y\r"
     }
+    timeout {
+        send_user "DEBUG: Timeout waiting for Y/N prompt\n"
+        exit 1
+    }
 }
+
+send_user "DEBUG: Waiting for Aethir> prompt...\n"
 
 # Step 2 — Wait for "Aethir> " prompt then send wallet creation command
 expect {
@@ -40,12 +50,24 @@ expect {
         send "aethir wallet create\r"
         send_user "DEBUG: Command sent: aethir wallet create\n"
     }
+    timeout {
+        send_user "DEBUG: Timeout waiting for Aethir> prompt\n"
+        exit 1
+    }
 }
 
-# Step 4 — Wait for wallet creation to finish and prompt to return
-expect -re "Aethir> "
+send_user "DEBUG: Waiting for wallet creation to complete...\n"
 
-send_user "\n✅ Wallet creation complete, CLI ready.\n"
+# Step 4 — Wait for wallet creation to finish and prompt to return
+expect {
+    -re "Aethir> " {
+        send_user "\n✅ Wallet creation complete, CLI ready.\n"
+    }
+    timeout {
+        send_user "DEBUG: Timeout waiting for wallet creation completion\n"
+        exit 1
+    }
+}
 
 # Step 5 — Stop automation here
 EOF
