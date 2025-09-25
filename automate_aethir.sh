@@ -23,6 +23,7 @@ fi
 # Automate Aethir CLI interaction
 expect << 'EOF'
 set timeout 60
+log_file -noappend /tmp/aethir_interaction.log
 spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
 
 send_user "DEBUG: CLI spawned, waiting for Y/N prompt...\n"
@@ -81,18 +82,6 @@ expect {
         exp_continue
     }
     -re "Aethir> " {
-        # Save keys to JSON file
-        if {$priv_key != "" && $pub_key != ""} {
-            set fp [open "/root/wallet.json" "w"]
-            puts $fp "\{"
-            puts $fp "  \"private_key\": \"$priv_key\","
-            puts $fp "  \"public_key\": \"$pub_key\""
-            puts $fp "\}"
-            close $fp
-            send_user "\n✅ Wallet keys saved to /root/wallet.json\n"
-        } else {
-            send_user "\n❌ Failed to capture wallet keys\n"
-        }
         send_user "✅ Wallet creation complete, CLI ready.\n"
         interact
     }
@@ -104,5 +93,36 @@ expect {
 
 # Step 5 — Stop automation here
 EOF
+
+echo "[3/3] Extracting wallet keys from interaction log..."
+
+# Extract keys from the log file
+if [ -f "/tmp/aethir_interaction.log" ]; then
+    # Extract private key (the line after "Current private key:")
+    PRIV_KEY=$(grep -A1 "Current private key:" /tmp/aethir_interaction.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    # Extract public key (the line after "Current public key:")
+    PUB_KEY=$(grep -A1 "Current public key:" /tmp/aethir_interaction.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    # Save to JSON file
+    if [ ! -z "$PRIV_KEY" ] && [ ! -z "$PUB_KEY" ]; then
+        cat > /root/wallet.json << JSON_EOF
+{
+  "private_key": "$PRIV_KEY",
+  "public_key": "$PUB_KEY"
+}
+JSON_EOF
+        echo "✅ Wallet keys saved to /root/wallet.json"
+        echo "Private key: ${PRIV_KEY:0:50}..."
+        echo "Public key: $PUB_KEY"
+    else
+        echo "❌ Failed to extract wallet keys from log"
+        echo "Debug: Checking log file..."
+        echo "Private key found: $([ ! -z "$PRIV_KEY" ] && echo "Yes" || echo "No")"
+        echo "Public key found: $([ ! -z "$PUB_KEY" ] && echo "Yes" || echo "No")"
+    fi
+else
+    echo "❌ Interaction log not found at /tmp/aethir_interaction.log"
+fi
 
 echo "[3/3] Aethir Checker automation complete."
