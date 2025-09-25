@@ -1,0 +1,18 @@
+[Unit]
+Description=Aethir Wallet Watcher - Start Riptide after wallet creation
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/root/start-riptide-after-wallet.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aethir-wallet-watcher
+
+[Install]
+WantedBy=multi-user.target

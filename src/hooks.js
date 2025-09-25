@@ -9,43 +9,10 @@ module.exports = {
     return { success: true };
   },
 
-  start: async ({ logger, utils }) => {
-    logger.info('Starting Aethir Checker service');
-    
-    try {
-      // Run our existing Aethir automation script
-      logger.info('Running Aethir automation script...');
-      const result = await utils.execCommand('bash /root/automate_aethir.sh', {
-        timeout: 300000, // 5 minutes timeout
-        cwd: '/root'
-      });
-      
-      if (result.exitCode === 0) {
-        logger.info('Aethir automation completed successfully');
-        
-        // Check if wallet was created
-        try {
-          const walletData = await fs.readFile('/root/wallet.json', 'utf8');
-          const wallet = JSON.parse(walletData);
-          logger.info('Wallet created successfully', {
-            hasPrivateKey: !!wallet.private_key,
-            hasPublicKey: !!wallet.public_key,
-            publicKey: wallet.public_key ? wallet.public_key.substring(0, 10) + '...' : 'none'
-          });
-        } catch (error) {
-          logger.warn('Could not read wallet.json', { error: error.message });
-        }
-      } else {
-        logger.error('Aethir automation failed', {
-          exitCode: result.exitCode,
-          stderr: result.stderr
-        });
-        throw new Error(`Aethir automation failed with exit code ${result.exitCode}`);
-      }
-    } catch (error) {
-      logger.error('Failed to start Aethir Checker', { error: error.message });
-      throw error;
-    }
+  start: async ({ logger }) => {
+    logger.info('Starting Aethir Checker service (Riptide only)');
+    // Aethir installation and wallet creation is handled separately
+    // Riptide only manages health checks and orchestrator communication
   },
 
   health: async ({ logger, utils }) => {

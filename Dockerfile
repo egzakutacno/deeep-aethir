@@ -59,9 +59,14 @@ COPY riptide.config.json /root/riptide.config.json
 COPY src/hooks.js /root/src/hooks.js
 RUN mkdir -p /root/src && chmod +x /root/src/hooks.js
 
-# Copy and enable Riptide systemd service
+# Copy Riptide systemd service (disabled by default)
 COPY aethir-riptide.service /etc/systemd/system/aethir-riptide.service
-RUN systemctl enable aethir-riptide.service
+
+# Copy wallet watcher script and service
+COPY start-riptide-after-wallet.sh /root/start-riptide-after-wallet.sh
+RUN chmod +x /root/start-riptide-after-wallet.sh
+COPY aethir-wallet-watcher.service /etc/systemd/system/aethir-wallet-watcher.service
+RUN systemctl enable aethir-wallet-watcher.service
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]

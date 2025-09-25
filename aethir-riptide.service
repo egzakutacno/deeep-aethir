@@ -2,6 +2,7 @@
 Description=Aethir Checker with Riptide Integration
 After=multi-user.target
 Wants=multi-user.target
+# Don't start automatically - will be started after wallet creation
 
 [Service]
 Type=simple
