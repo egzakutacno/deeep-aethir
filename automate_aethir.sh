@@ -32,8 +32,9 @@ expect {
     }
 }
 
-# Step 2 — Wait for the actual CLI prompt (not the banner text)
-expect -re "Aethir> $"
+# Step 2 — Wait for "Initializing..." then wait for the next line of text
+expect "Initializing..."
+expect -re ".*"
 
 # Step 3 — Send wallet creation command once
 send "aethir wallet create\r"
