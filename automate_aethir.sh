@@ -57,21 +57,16 @@ expect {
     eof {}
 }
 
-# Wait for wallet prompt or for the interactive prompt "Aethir>"
+# Wait for the Aethir> prompt and ensure CLI is ready
 expect {
-    -re {Please create a wallet.*\(wallet create\)|Please create a wallet} {
-        # give CLI a short settle time before sending command
-        after 1000
-        # send full command slowly
-        send_slow "aethir wallet create\r"
-    }
-    -re {Aethir>\s*$|Aethir>\s+|^\>\s*$|^\>\s+} {
-        # wait at least 1 second after the prompt appears (reduce race)
-        after 1000
+    -re {Aethir>\s*$} {
+        # Wait 2 seconds after prompt appears to ensure CLI is ready
+        after 2000
+        # Send command slowly
         send_slow "aethir wallet create\r"
     }
     timeout {
-        puts "ERROR: timeout waiting for wallet prompt/instruction. See /tmp/aethir_expect.log"
+        puts "ERROR: timeout waiting for Aethir> prompt. See /tmp/aethir_expect.log"
         exit 2
     }
     eof {
