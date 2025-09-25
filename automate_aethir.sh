@@ -51,8 +51,8 @@ expect {
         send_user "DEBUG: Sending command: aethir wallet create\n"
         send "aethir wallet create\r"
         send_user "DEBUG: Command sent successfully, waiting for wallet creation...\n"
-        # Wait for wallet creation to complete
-        sleep 10
+        # Wait longer for wallet creation to complete
+        sleep 15
         send_user "DEBUG: Wallet creation should be complete\n"
     }
     timeout {
@@ -70,6 +70,7 @@ expect {
         send_user "DEBUG: Now exporting wallet keys...\n"
         
         # Step 5 — Export wallet keys
+        sleep 3
         send "aethir wallet export\r"
         send_user "DEBUG: Export command sent\n"
         
@@ -113,6 +114,7 @@ expect {
     }
     -re ".*" {
         send_user "DEBUG: Got some output, trying export anyway...\n"
+        sleep 3
         send "aethir wallet export\r"
         send_user "DEBUG: Export command sent\n"
         
