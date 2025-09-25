@@ -61,6 +61,14 @@ send_user "DEBUG: Waiting for wallet creation to complete...\n"
 
 # Step 4 — Wait for wallet creation to finish and prompt to return
 expect {
+    -re "Current private key:" {
+        send_user "DEBUG: Wallet creation started, keys being generated...\n"
+        exp_continue
+    }
+    -re "Current public key:" {
+        send_user "DEBUG: Public key generated...\n"
+        exp_continue
+    }
     -re "Aethir> " {
         send_user "\n✅ Wallet creation complete, CLI ready.\n"
     }
