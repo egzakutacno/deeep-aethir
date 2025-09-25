@@ -24,32 +24,26 @@ fi
 expect << 'EOF'
 spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
 
-# Step 1 — Accept Terms of Service
+# Step 1 — Accept Terms of Service once
 expect {
     -re "Y/N:" {
         sleep 1
         send "y\r"
-        exp_continue
     }
 }
 
-# Step 2 — Wait for CLI prompt and create wallet
-expect {
-    -re "Aethir> " {
-        send "aethir wallet create\r"
-        exp_continue
-    }
-}
+# Step 2 — Wait for the CLI prompt
+expect -re "Aethir> "
 
-# Step 3 — Wait until wallet creation completes
-expect {
-    -re "Aethir> " {
-        send_user "✅ Wallet creation complete.\n"
-    }
-}
+# Step 3 — Send wallet creation command once
+send "aethir wallet create\r"
 
-# Optional — keep CLI interactive after automation
-interact
+# Step 4 — Wait for wallet creation to finish and prompt to return
+expect -re "Aethir> "
+
+send_user "\n✅ Wallet creation complete, CLI ready.\n"
+
+# Step 5 — Stop automation here
 EOF
 
 echo "[3/3] Aethir Checker automation complete."
