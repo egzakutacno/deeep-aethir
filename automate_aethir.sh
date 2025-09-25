@@ -94,46 +94,38 @@ expect {
 # Step 5 — Stop automation here
 EOF
 
-echo "[3/3] Extracting wallet keys from interaction log..."
+echo "[3/3] Looking for wallet file instead of parsing stdout..."
 
-# Debug: Check if log file exists
-echo "DEBUG: Checking for log file..."
-if [ -f "/tmp/aethir_interaction.log" ]; then
-    echo "✅ Log file exists"
-    echo "DEBUG: Log file contents:"
-    cat /tmp/aethir_interaction.log
-    echo "DEBUG: End of log file"
-    
-    # Extract private key (the line after "Current private key:")
-    PRIV_KEY=$(grep -A1 "Current private key:" /tmp/aethir_interaction.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    
-    # Extract public key (the line after "Current public key:")
-    PUB_KEY=$(grep -A1 "Current public key:" /tmp/aethir_interaction.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-    
-    echo "DEBUG: Extracted private key: '$PRIV_KEY'"
-    echo "DEBUG: Extracted public key: '$PUB_KEY'"
-    
-    # Save to JSON file
-    if [ ! -z "$PRIV_KEY" ] && [ ! -z "$PUB_KEY" ]; then
-        cat > /root/wallet.json << JSON_EOF
-{
-  "private_key": "$PRIV_KEY",
-  "public_key": "$PUB_KEY"
-}
-JSON_EOF
-        echo "✅ Wallet keys saved to /root/wallet.json"
-        echo "Private key: ${PRIV_KEY:0:50}..."
-        echo "Public key: $PUB_KEY"
-    else
-        echo "❌ Failed to extract wallet keys from log"
-        echo "Debug: Checking log file..."
-        echo "Private key found: $([ ! -z "$PRIV_KEY" ] && echo "Yes" || echo "No")"
-        echo "Public key found: $([ ! -z "$PUB_KEY" ] && echo "Yes" || echo "No")"
+# The CLI saves wallet keys to a file, not stdout!
+# Check common locations for wallet files
+WALLET_DIRS=("/root/.aethir" "/home/aethir/.aethir" "/root" "/home/aethir")
+WALLET_FILES=("wallet.json" "keys.json" "wallet" "private.key" "public.key")
+
+echo "🔍 Searching for wallet files..."
+
+for dir in "${WALLET_DIRS[@]}"; do
+    if [ -d "$dir" ]; then
+        echo "📁 Checking directory: $dir"
+        ls -la "$dir" 2>/dev/null || echo "   (empty or no access)"
+        
+        for file in "${WALLET_FILES[@]}"; do
+            if [ -f "$dir/$file" ]; then
+                echo "✅ Found wallet file: $dir/$file"
+                echo "📄 File contents:"
+                cat "$dir/$file"
+                
+                # Try to copy to /root/wallet.json
+                cp "$dir/$file" /root/wallet.json
+                echo "✅ Copied wallet file to /root/wallet.json"
+                exit 0
+            fi
+        done
     fi
-else
-    echo "❌ Interaction log not found at /tmp/aethir_interaction.log"
-    echo "DEBUG: Available log files:"
-    ls -la /tmp/*.log 2>/dev/null || echo "No log files found"
-fi
+done
+
+echo "❌ No wallet files found in common locations"
+echo "🔍 Let's check what files were created:"
+find /root -name "*wallet*" -o -name "*key*" -o -name "*.json" 2>/dev/null | head -10
+find /home -name "*wallet*" -o -name "*key*" -o -name "*.json" 2>/dev/null | head -10
 
 echo "[3/3] Aethir Checker automation complete."
