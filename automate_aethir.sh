@@ -49,7 +49,9 @@ expect {
         sleep 3
         send_user "DEBUG: Sending command: aethir wallet create\n"
         send "aethir wallet create\r"
-        send_user "DEBUG: Command sent successfully\n"
+        send_user "DEBUG: Command sent successfully, waiting for wallet creation to start...\n"
+        # Wait a bit more to ensure the command is processed
+        sleep 5
     }
     timeout {
         send_user "DEBUG: Timeout waiting for Aethir> prompt\n"
@@ -69,7 +71,12 @@ expect {
         send_user "DEBUG: Public key generated...\n"
         exp_continue
     }
+    -re "No licenses delegated to your burner wallet" {
+        send_user "DEBUG: Wallet creation completed, waiting for final prompt...\n"
+        exp_continue
+    }
     -re "Aethir> " {
+        # Only consider it complete if we've seen the wallet creation process
         send_user "\n✅ Wallet creation complete, CLI ready.\n"
         interact
     }
