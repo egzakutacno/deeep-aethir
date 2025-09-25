@@ -1,0 +1,17 @@
+{
+  "service": {
+    "name": "aethir-checker",
+    "version": "1.0.0",
+    "description": "Aethir Checker service with Riptide integration"
+  },
+  "logging": {
+    "level": "info"
+  },
+  "health": {
+    "port": 3000
+  },
+  "heartbeat": {
+    "interval": 30,
+    "enabled": true
+  }
+}

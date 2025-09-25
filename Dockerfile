@@ -21,6 +21,13 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js 22 (required for Riptide)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs
+
+# Install Riptide SDK globally
+RUN npm install -g @deeep-network/riptide@latest
+
 # Create aethir user for running the service
 RUN useradd -m -s /bin/bash aethir && \
     mkdir -p /home/aethir/.aethir && \
@@ -46,6 +53,15 @@ RUN cd /root && \
 # Copy automation script
 COPY automate_aethir.sh /root/automate_aethir.sh
 RUN chmod +x /root/automate_aethir.sh
+
+# Copy Riptide configuration and hooks
+COPY riptide.config.json /root/riptide.config.json
+COPY src/hooks.js /root/src/hooks.js
+RUN mkdir -p /root/src && chmod +x /root/src/hooks.js
+
+# Copy and enable Riptide systemd service
+COPY aethir-riptide.service /etc/systemd/system/aethir-riptide.service
+RUN systemctl enable aethir-riptide.service
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]

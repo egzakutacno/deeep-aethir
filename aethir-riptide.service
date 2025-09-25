@@ -1,0 +1,22 @@
+[Unit]
+Description=Aethir Checker with Riptide Integration
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/usr/bin/node /usr/lib/node_modules/@deeep-network/riptide/dist/cli.js start --config /root/riptide.config.json --hooks /root/src/hooks.js
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aethir-riptide
+
+# Environment variables
+Environment=NODE_ENV=production
+Environment=LOG_LEVEL=info
+
+[Install]
+WantedBy=multi-user.target

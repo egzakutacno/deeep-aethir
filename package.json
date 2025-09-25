@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@deeep-network/riptide": "^0.2.11"
+  }
+}

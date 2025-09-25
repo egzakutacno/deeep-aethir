@@ -1,0 +1,10 @@
+{
+  "service": {
+    "name": "test-service",
+    "version": "1.0.0",
+    "description": "test-service service"
+  },
+  "logging": {
+    "level": "info"
+  }
+}
