@@ -16,39 +16,92 @@ if [ -f "/root/wallet.json" ]; then
     exit 0
 fi
 
-# Record the session and parse the output using script command
-echo "Starting Aethir CLI session..."
+# Create the expect script
+cat > /root/aethir_wallet_expect.exp << 'EXPECT_EOF'
+#!/usr/bin/expect -f
+# Usage: ./aethir_wallet_expect.exp /root/AethirCheckerCLI-linux/AethirCheckerCLI /root/wallet.json
+set cli_path [lindex $argv 0]
+set out_json  [lindex $argv 1]
 
-# Use printf with proper timing to send commands
-{
-    printf "y\r"
-    sleep 3
-    printf "aethir wallet create\r"
-    sleep 8
-    printf "exit\r"
-    sleep 2
-} | script -q /tmp/aethir_session.log -c '/root/AethirCheckerCLI-linux/AethirCheckerCLI'
+# adjust timeout as needed
+set timeout 30
 
-echo "Session completed. Parsing output..."
-
-# Parse the log file for keys
-privkey=$(grep -A1 "Current private key:" /tmp/aethir_session.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-pubkey=$(grep -A1 "Current public key:" /tmp/aethir_session.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-
-echo "DEBUG: Captured private key: $privkey"
-echo "DEBUG: Captured public key: $pubkey"
-
-# Save to JSON file
-cat > /root/wallet.json << JSON_EOF
-{
-  "private_key": "$privkey",
-  "public_key": "$pubkey"
+spawn -noecho $cli_path
+# Accept the TOS if prompted (match Y/N with colon or whitespace)
+expect {
+  -re {Y/N:|Y/N: } { send "y\r"; exp_continue }
+  -re {Please create a wallet|wallet create|wallet create\)} { send "aethir wallet create\r"; exp_continue }
+  -re {Please create a wallet \(wallet create\)|Please create a wallet} { send "aethir wallet create\r"; exp_continue }
+  timeout { puts "ERROR: timeout waiting for prompts"; exit 2 }
+  eof {}
 }
-JSON_EOF
+
+# Wait for the wallet creation to finish and capture lines
+# We'll accumulate output, then parse for keys
+set full_output ""
+# Read until EOF
+expect {
+  -re "(.*)" {
+    append full_output $expect_out(0,string)
+    exp_continue
+  }
+  eof {}
+}
+
+# Remove ANSI ESC sequences (simple)
+set cleaned [regsub -all {\x1b\[[0-9;]*[A-Za-z]} $full_output "" cleaned_out]
+# Alternatively use more aggressive regex if needed
+set cleaned $cleaned_out
+
+# Try to extract private and public keys using regex groups
+set priv ""
+set pub ""
+if {[regexp -nocase {Current private key:\s*(\S+)} $cleaned -> priv]} {
+    # priv captured
+} elseif {[regexp -nocase {Private Key:\s*(\S+)} $cleaned -> priv]} {
+    # alternate phrasing
+}
+
+if {[regexp -nocase {Current public key:\s*(\S+)} $cleaned -> pub]} {
+} elseif {[regexp -nocase {Public Key:\s*(\S+)} $cleaned -> pub]} {
+}
+
+if {$priv eq "" && $pub eq ""} {
+    # Try looser patterns (any line with "private" or "public" near some token)
+    if {[regexp -nocase {private.*?:\s*(\S+)} $cleaned -> priv]} {}
+    if {[regexp -nocase {public.*?:\s*(\S+)} $cleaned -> pub]} {}
+}
+
+if {$priv eq "" || $pub eq ""} {
+    puts "ERROR: could not find keys in CLI output. Dumping cleaned log to /tmp/aethir_cleaned.log"
+    set f [open "/tmp/aethir_cleaned.log" "w"]
+    puts $f $cleaned
+    close $f
+    exit 3
+}
+
+# Build JSON safely
+set f [open $out_json "w"]
+puts $f "{"
+puts $f "  \"private_key\": \"$priv\","
+puts $f "  \"public_key\": \"$pub\""
+puts $f "}"
+close $f
+
+puts "Saved keys to $out_json"
+exit 0
+EXPECT_EOF
+
+# Make the expect script executable
+chmod +x /root/aethir_wallet_expect.exp
+
+# Run the expect script
+echo "Starting Aethir CLI with expect automation..."
+/root/aethir_wallet_expect.exp /root/AethirCheckerCLI-linux/AethirCheckerCLI /root/wallet.json
 
 echo "Wallet keys saved successfully!"
 
 # Clean up
-rm -f /tmp/aethir_session.log /tmp/aethir_commands.sh
+rm -f /root/aethir_wallet_expect.exp
 
 echo "[3/3] Wallet automation completed!"
