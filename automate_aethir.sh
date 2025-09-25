@@ -19,74 +19,119 @@ fi
 # Create the expect script
 cat > /root/aethir_wallet_expect.exp << 'EXPECT_EOF'
 #!/usr/bin/expect -f
-# Usage: ./aethir_wallet_expect.exp /root/AethirCheckerCLI-linux/AethirCheckerCLI /root/wallet.json
+#
+# /root/aethir_wallet_expect_fixed.exp <path-to-AethirCLI> <out-json>
+# Example:
+#   /root/aethir_wallet_expect_fixed.exp /root/AethirCheckerCLI-linux/AethirCheckerCLI /root/wallet.json
+
+if { $argc < 2 } {
+    puts "Usage: $argv0 <path-to-AethirCLI> <out-json>"
+    exit 1
+}
 set cli_path [lindex $argv 0]
 set out_json  [lindex $argv 1]
 
-# adjust timeout as needed
-set timeout 30
+# debug log
+log_file -noappend /tmp/aethir_expect.log
+
+# adjust if wallet creation is slow
+set timeout 180
+
+# helper: send string slowly (ms delay between chars)
+proc send_slow {s} {
+    foreach ch [split $s ""] {
+        send -- $ch
+        after 30
+    }
+}
 
 spawn -noecho $cli_path
-# Accept the TOS if prompted (match Y/N with colon or whitespace)
+
+# Accept TOS if prompted; tolerate multiple variants
 expect {
-  -re {Y/N:|Y/N: } { send "y\r"; exp_continue }
-  -re {Please create a wallet|wallet create|wallet create\)} { send "aethir wallet create\r"; exp_continue }
-  -re {Please create a wallet \(wallet create\)|Please create a wallet} { send "aethir wallet create\r"; exp_continue }
-  timeout { puts "ERROR: timeout waiting for prompts"; exit 2 }
-  eof {}
+    -re {Y/N:|Press y to continue|Please accept the Terms of service} {
+        send "y\r"
+        exp_continue
+    }
+    timeout {}
+    eof {}
 }
 
-# Wait for the wallet creation to finish and capture lines
-# We'll accumulate output, then parse for keys
-set full_output ""
-# Read until EOF
+# Wait for wallet prompt or for the interactive prompt "Aethir>"
 expect {
-  -re "(.*)" {
-    append full_output $expect_out(0,string)
-    exp_continue
-  }
-  eof {}
+    -re {Please create a wallet.*\(wallet create\)|Please create a wallet} {
+        # give CLI a short settle time before sending command
+        after 1000
+        # send full command slowly
+        send_slow "aethir wallet create\r"
+    }
+    -re {Aethir>\s*$|Aethir>\s+|^\>\s*$|^\>\s+} {
+        # wait at least 1 second after the prompt appears (reduce race)
+        after 1000
+        send_slow "aethir wallet create\r"
+    }
+    timeout {
+        puts "ERROR: timeout waiting for wallet prompt/instruction. See /tmp/aethir_expect.log"
+        exit 2
+    }
+    eof {
+        puts "ERROR: CLI exited early. See /tmp/aethir_expect.log"
+        exit 3
+    }
 }
 
-# Remove ANSI ESC sequences (simple)
-set cleaned [regsub -all {\x1b\[[0-9;]*[A-Za-z]} $full_output "" cleaned_out]
-# Alternatively use more aggressive regex if needed
-set cleaned $cleaned_out
-
-# Try to extract private and public keys using regex groups
+# Now wait for keys to be printed. Try multiple patterns and multi-line fallback.
 set priv ""
 set pub ""
-if {[regexp -nocase {Current private key:\s*(\S+)} $cleaned -> priv]} {
-    # priv captured
-} elseif {[regexp -nocase {Private Key:\s*(\S+)} $cleaned -> priv]} {
-    # alternate phrasing
+set timeout 180
+
+expect {
+    -re {(?i)current\s+private\s+key[:\s]*([A-Za-z0-9\-\_]+)} {
+        set priv $expect_out(1,string); exp_continue
+    }
+    -re {(?i)private\s+key[:\s]*([A-Za-z0-9\-\_]+)} {
+        if {$priv == ""} { set priv $expect_out(1,string) }; exp_continue
+    }
+    -re {(?i)current\s+public\s+key[:\s]*([A-Za-z0-9\-\_]+)} {
+        set pub $expect_out(1,string); exp_continue
+    }
+    -re {(?i)public\s+key[:\s]*([A-Za-z0-9\-\_]+)} {
+        if {$pub == ""} { set pub $expect_out(1,string) }; exp_continue
+    }
+    eof {}
+    timeout {}
 }
 
-if {[regexp -nocase {Current public key:\s*(\S+)} $cleaned -> pub]} {
-} elseif {[regexp -nocase {Public Key:\s*(\S+)} $cleaned -> pub]} {
+# If not found, parse the logged session for label + newline + key patterns
+if { $priv == "" || $pub == "" } {
+    if {[catch {set fh [open "/tmp/aethir_expect.log" "r"]} err]} {
+        puts "ERROR: cannot open /tmp/aethir_expect.log : $err"
+    } else {
+        set logged [read $fh]
+        close $fh
+        if {$priv == ""} {
+            if {[regexp -nocase {current\s+private\s+key:\s*\r?\n\s*([A-Za-z0-9\-\_]+)} $logged -> k]} { set priv $k }
+            if {$priv == "" && [regexp -nocase {private\s+key:\s*\r?\n\s*([A-Za-z0-9\-\_]+)} $logged -> k]} { set priv $k }
+        }
+        if {$pub == ""} {
+            if {[regexp -nocase {current\s+public\s+key:\s*\r?\n\s*([A-Za-z0-9\-\_]+)} $logged -> k]} { set pub $k }
+            if {$pub == "" && [regexp -nocase {public\s+key:\s*\r?\n\s*([A-Za-z0-9\-\_]+)} $logged -> k]} { set pub $k }
+        }
+    }
 }
 
-if {$priv eq "" && $pub eq ""} {
-    # Try looser patterns (any line with "private" or "public" near some token)
-    if {[regexp -nocase {private.*?:\s*(\S+)} $cleaned -> priv]} {}
-    if {[regexp -nocase {public.*?:\s*(\S+)} $cleaned -> pub]} {}
+if { $priv == "" || $pub == "" } {
+    puts "ERROR: Could not find both keys. priv='$priv' pub='$pub'. Inspect /tmp/aethir_expect.log"
+    exit 4
 }
 
-if {$priv eq "" || $pub eq ""} {
-    puts "ERROR: could not find keys in CLI output. Dumping cleaned log to /tmp/aethir_cleaned.log"
-    set f [open "/tmp/aethir_cleaned.log" "w"]
-    puts $f $cleaned
-    close $f
-    exit 3
-}
-
-# Build JSON safely
-set f [open $out_json "w"]
-puts $f "{"
-puts $f "  \"private_key\": \"$priv\","
-puts $f "  \"public_key\": \"$pub\""
-puts $f "}"
-close $f
+# write json
+set fh [open $out_json "w"]
+puts $fh "{"
+puts $fh "  \"private_key\": \"$priv\","
+puts $fh "  \"public_key\": \"$pub\""
+puts $fh "}"
+close $fh
 
 puts "Saved keys to $out_json"
 exit 0
