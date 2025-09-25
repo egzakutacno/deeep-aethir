@@ -18,11 +18,16 @@ fi
 
 # Record the session and parse the output using script command
 echo "Starting Aethir CLI session..."
-script -q /tmp/aethir_session.log -c '/root/AethirCheckerCLI-linux/AethirCheckerCLI' << 'EOF'
-y
-aethir wallet create
-exit
-EOF
+
+# Use printf with proper timing to send commands
+{
+    printf "y\r"
+    sleep 3
+    printf "aethir wallet create\r"
+    sleep 8
+    printf "exit\r"
+    sleep 2
+} | script -q /tmp/aethir_session.log -c '/root/AethirCheckerCLI-linux/AethirCheckerCLI'
 
 echo "Session completed. Parsing output..."
 
@@ -44,6 +49,6 @@ JSON_EOF
 echo "Wallet keys saved successfully!"
 
 # Clean up
-rm -f /tmp/aethir_session.log
+rm -f /tmp/aethir_session.log /tmp/aethir_commands.sh
 
 echo "[3/3] Wallet automation completed!"
