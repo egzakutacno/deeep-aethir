@@ -63,28 +63,53 @@ expect {
 
 send_user "DEBUG: Waiting for wallet creation to complete...\n"
 
-# Step 4 — Wait for wallet creation to finish and capture keys
-set priv_key ""
-set pub_key ""
-
+# Step 4 — Wait for wallet creation to finish (don't try to capture keys)
 expect {
-    -re "Current private key:\r?\n(.*?)\r?\n" {
-        set priv_key $expect_out(1,string)
-        send_user "DEBUG: Private key captured\n"
-        exp_continue
-    }
-    -re "Current public key:\r?\n(.*?)\r?\n" {
-        set pub_key $expect_out(1,string)
-        send_user "DEBUG: Public key captured\n"
-        exp_continue
-    }
-    -re "No licenses delegated to your burner wallet" {
-        send_user "DEBUG: Wallet creation completed, saving keys...\n"
-        exp_continue
-    }
     -re "Aethir> " {
         send_user "✅ Wallet creation complete, CLI ready.\n"
-        interact
+        send_user "DEBUG: Now exporting wallet keys...\n"
+        
+        # Step 5 — Export wallet keys
+        send "aethir wallet export\r"
+        send_user "DEBUG: Export command sent\n"
+        
+        # Wait for export output and capture keys
+        set priv_key ""
+        set pub_key ""
+        
+        expect {
+            -re "Private key: (.*)" {
+                set priv_key $expect_out(1,string)
+                send_user "DEBUG: Private key captured from export\n"
+                exp_continue
+            }
+            -re "Public key: (.*)" {
+                set pub_key $expect_out(1,string)
+                send_user "DEBUG: Public key captured from export\n"
+                exp_continue
+            }
+            -re "Aethir> " {
+                send_user "✅ Export complete\n"
+                
+                # Save captured keys to file
+                if {[string length $priv_key] > 0 && [string length $pub_key] > 0} {
+                    set wallet_file [open "/root/wallet.json" w]
+                    puts $wallet_file "{\n  \"private_key\": \"$priv_key\",\n  \"public_key\": \"$pub_key\"\n}"
+                    close $wallet_file
+                    send_user "✅ Wallet keys saved to /root/wallet.json\n"
+                } else {
+                    send_user "❌ Failed to capture wallet keys from export\n"
+                }
+                
+                send "exit\r"
+                expect eof
+            }
+            timeout {
+                send_user "DEBUG: Timeout waiting for export\n"
+                send "exit\r"
+                expect eof
+            }
+        }
     }
     timeout {
         send_user "DEBUG: Timeout waiting for wallet creation completion\n"
@@ -92,41 +117,15 @@ expect {
     }
 }
 
-# Step 5 — Stop automation here
 EOF
 
-echo "[3/3] Looking for wallet file instead of parsing stdout..."
+echo "[3/3] Wallet automation complete."
 
-# The CLI saves wallet keys to a file, not stdout!
-# Check common locations for wallet files
-WALLET_DIRS=("/root/.aethir" "/home/aethir/.aethir" "/root" "/home/aethir")
-WALLET_FILES=("wallet.json" "keys.json" "wallet" "private.key" "public.key")
-
-echo "🔍 Searching for wallet files..."
-
-for dir in "${WALLET_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
-        echo "📁 Checking directory: $dir"
-        ls -la "$dir" 2>/dev/null || echo "   (empty or no access)"
-        
-        for file in "${WALLET_FILES[@]}"; do
-            if [ -f "$dir/$file" ]; then
-                echo "✅ Found wallet file: $dir/$file"
-                echo "📄 File contents:"
-                cat "$dir/$file"
-                
-                # Try to copy to /root/wallet.json
-                cp "$dir/$file" /root/wallet.json
-                echo "✅ Copied wallet file to /root/wallet.json"
-                exit 0
-            fi
-        done
-    fi
-done
-
-echo "❌ No wallet files found in common locations"
-echo "🔍 Let's check what files were created:"
-find /root -name "*wallet*" -o -name "*key*" -o -name "*.json" 2>/dev/null | head -10
-find /home -name "*wallet*" -o -name "*key*" -o -name "*.json" 2>/dev/null | head -10
-
-echo "[3/3] Aethir Checker automation complete."
+# Check if wallet.json was created by the expect script
+if [ -f "/root/wallet.json" ]; then
+    echo "✅ Wallet keys successfully saved to /root/wallet.json"
+    echo "📄 Wallet contents:"
+    cat /root/wallet.json
+else
+    echo "❌ Wallet.json not found - automation may have failed"
+fi
