@@ -61,23 +61,39 @@ expect {
 
 send_user "DEBUG: Waiting for wallet creation to complete...\n"
 
-# Step 4 — Wait for wallet creation to finish and prompt to return
+# Step 4 — Wait for wallet creation to finish and capture keys
+set priv_key ""
+set pub_key ""
+
 expect {
-    -re "Current private key:" {
-        send_user "DEBUG: Wallet creation started, keys being generated...\n"
+    -re "Current private key:\r?\n(.*?)\r?\n" {
+        set priv_key $expect_out(1,string)
+        send_user "DEBUG: Private key captured\n"
         exp_continue
     }
-    -re "Current public key:" {
-        send_user "DEBUG: Public key generated...\n"
+    -re "Current public key:\r?\n(.*?)\r?\n" {
+        set pub_key $expect_out(1,string)
+        send_user "DEBUG: Public key captured\n"
         exp_continue
     }
     -re "No licenses delegated to your burner wallet" {
-        send_user "DEBUG: Wallet creation completed, waiting for final prompt...\n"
+        send_user "DEBUG: Wallet creation completed, saving keys...\n"
         exp_continue
     }
     -re "Aethir> " {
-        # Only consider it complete if we've seen the wallet creation process
-        send_user "\n✅ Wallet creation complete, CLI ready.\n"
+        # Save keys to JSON file
+        if {$priv_key != "" && $pub_key != ""} {
+            set fp [open "/root/wallet.json" "w"]
+            puts $fp "\{"
+            puts $fp "  \"private_key\": \"$priv_key\","
+            puts $fp "  \"public_key\": \"$pub_key\""
+            puts $fp "\}"
+            close $fp
+            send_user "\n✅ Wallet keys saved to /root/wallet.json\n"
+        } else {
+            send_user "\n❌ Failed to capture wallet keys\n"
+        }
+        send_user "✅ Wallet creation complete, CLI ready.\n"
         interact
     }
     timeout {
