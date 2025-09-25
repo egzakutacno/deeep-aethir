@@ -32,9 +32,9 @@ expect {
     }
 }
 
-# Step 2 — Wait for "Initializing..." then sleep 10 seconds
+# Step 2 — Wait for "Initializing..." then sleep 20 seconds
 expect "Initializing..."
-sleep 10
+sleep 20
 
 # Step 3 — Send wallet creation command once
 send "aethir wallet create\r"
