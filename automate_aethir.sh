@@ -3,12 +3,12 @@ set -e
 
 echo "[1/3] Running install.sh ..."
 
-# Go to the Aethir directory and run install.sh
-if [ -f "/root/aethir/install.sh" ]; then
-    cd /root/aethir || exit
-    bash install.sh
+# Correct install.sh path
+INSTALL_PATH="/root/AethirCheckerCLI-linux/install.sh"
+if [ -f "$INSTALL_PATH" ]; then
+    bash "$INSTALL_PATH"
 else
-    echo "❗ install.sh not found in /root/aethir"
+    echo "❗ install.sh not found at $INSTALL_PATH"
     exit 1
 fi
 
@@ -22,7 +22,7 @@ fi
 
 # Automate Aethir CLI interaction
 expect << 'EOF'
-spawn /root/AethirCheckerCLI-linux
+spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
 
 # Step 1 — Accept Terms of Service
 expect {
