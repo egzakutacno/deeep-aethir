@@ -1,8 +1,11 @@
 #!/bin/bash
+
+# Ensure the script exits on any error
 set -e
 
 echo "[1/3] Running install.sh ..."
 
+# Run the installation first
 INSTALL_PATH="/root/AethirCheckerCLI-linux/install.sh"
 if [ -f "$INSTALL_PATH" ]; then
     bash "$INSTALL_PATH"
@@ -11,65 +14,81 @@ else
     exit 1
 fi
 
-echo "[2/3] Running Python wallet automation..."
+echo "[2/3] Running wallet automation..."
 
-python3 <<'EOF'
-import pexpect, sys, re, json
+# Install expect if not already installed
+if ! command -v expect &>/dev/null; then
+    echo "Installing expect..."
+    apt-get update && apt-get install -y expect
+fi
 
-print("🚀 Starting Aethir CLI with pexpect...")
-child = pexpect.spawn("/root/AethirCheckerCLI-linux/AethirCheckerCLI", encoding="utf-8", timeout=60)
-child.logfile = sys.stdout
+# Define the expect script content
+cat <<'EOF' > /tmp/wallet_auto.exp
+#!/usr/bin/expect -f
+set timeout 120
 
-wallet = {"private_key": None, "public_key": None}
+# Start the CLI
+spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
 
-try:
-    print("📋 Waiting for Terms of Service prompt...")
-    child.expect("Y/N:")
-    child.sendline("y")
-    print("✅ Accepted Terms of Service")
+# Accept Terms of Service
+expect {
+    -re "Y/N:" { 
+        send "y\r"
+        exp_continue
+    }
+}
 
-    child.expect("Aethir>")
-    child.sendline("aethir wallet create")
-    print("🔑 Creating wallet...")
+# Wait for instructions and send wallet create command
+expect {
+    -re "Please create a wallet" {
+        send "aethir wallet create\r"
+        exp_continue
+    }
+}
 
-    child.expect("Aethir>")
-    child.sendline("aethir wallet export")
-    print("📤 Exporting wallet keys...")
+# Wait for wallet creation to complete
+expect {
+    -re "Aethir>" {
+        send "aethir wallet export\r"
+        exp_continue
+    }
+}
 
-    # Capture output until next prompt
-    child.expect("Aethir>")
-    output = child.before
-
-    # Extract keys
-    priv_match = re.search(r"Current private key:\s*([\s\S]+?)\n", output)
-    pub_match = re.search(r"Current public key:\s*([0-9a-f]+)", output)
-
-    if priv_match:
-        wallet["private_key"] = priv_match.group(1).strip()
-    if pub_match:
-        wallet["public_key"] = pub_match.group(1).strip()
-
-    # Save keys
-    with open("/root/wallet.json", "w") as f:
-        json.dump(wallet, f, indent=2)
-
-    print("✅ Wallet keys saved to /root/wallet.json")
-
-except pexpect.TIMEOUT:
-    print("❌ Timeout while waiting for CLI output")
-    sys.exit(1)
-except pexpect.EOF:
-    print("❌ Process ended unexpectedly")
-    sys.exit(1)
+# Capture the export output
+expect {
+    -re "Private key: (.*)" {
+        set priv_key $expect_out(1,string)
+        exp_continue
+    }
+    -re "Public key: (.*)" {
+        set pub_key $expect_out(1,string)
+        exp_continue
+    }
+    -re "Aethir>" {
+        # Save keys to file
+        set wallet_file [open "/root/wallet.json" w]
+        puts $wallet_file "{\n  \"private_key\": \"$priv_key\",\n  \"public_key\": \"$pub_key\"\n}"
+        close $wallet_file
+        send "exit\r"
+        expect eof
+    }
+}
 EOF
+
+# Make the expect script executable
+chmod +x /tmp/wallet_auto.exp
+
+# Run the expect script
+echo "🚀 Running wallet automation..."
+/tmp/wallet_auto.exp
 
 echo "[3/3] Wallet automation complete!"
 
-# Check if wallet.json was created
+# Check if wallet.json was created and contains keys
 if [ -f "/root/wallet.json" ]; then
-    echo "✅ Wallet keys successfully saved to /root/wallet.json"
-    echo "📄 Wallet contents:"
+    echo "✅ Wallet created successfully. Contents:"
     cat /root/wallet.json
 else
-    echo "❌ Wallet.json not found - automation may have failed"
+    echo "❌ Wallet creation failed. /root/wallet.json not found."
+    exit 1
 fi
