@@ -34,12 +34,14 @@ send "aethir wallet create\r"
 # Wait for "Current private key:" then capture the key (skip the empty line)
 expect "Current private key:"
 expect "\r\n"
-set privkey [gets stdin]
+expect -re "(.+)\r\n"
+set privkey $expect_out(1,string)
 
 # Wait for "Current public key:" then capture the key (skip the empty line)
 expect "Current public key:"
 expect "\r\n"
-set pubkey [gets stdin]
+expect -re "(.+)\r\n"
+set pubkey $expect_out(1,string)
 
 # Debug: Print what we captured
 puts "DEBUG: Captured private key: $privkey"
