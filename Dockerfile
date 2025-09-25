@@ -16,8 +16,7 @@ RUN apt-get update && \
     unzip \
     file \
     nano \
-    python3 \
-    python3-pip \
+    expect \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -44,10 +43,9 @@ RUN cd /root && \
     unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
     echo "Extraction failed - will try manual extraction later"
 
-# Install pexpect and copy automation script
-RUN pip3 install pexpect
-COPY automate_aethir.py /root/automate_aethir.py
-RUN chmod +x /root/automate_aethir.py
+# Copy automation script
+COPY automate_aethir.sh /root/automate_aethir.sh
+RUN chmod +x /root/automate_aethir.sh
 
 # Set the entrypoint to systemd
 ENTRYPOINT ["/lib/systemd/systemd"]
