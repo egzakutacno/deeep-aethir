@@ -48,8 +48,10 @@ puts $fp "  \"public_key\": \"$pubkey\""
 puts $fp "}"
 close $fp
 
-# Stop CLI (Ctrl+C)
-send "\003"
+puts "Wallet keys saved successfully!"
+
+# Exit the CLI cleanly
+send "exit\r"
 expect eof
 EOF
 
