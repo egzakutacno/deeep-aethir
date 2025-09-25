@@ -41,7 +41,7 @@ expect {
     }
 }
 
-send_user "DEBUG: Waiting for Aethir> prompt...\n"
+send_user "DEBUG: Waiting for instructions...\n"
 
 # Step 2 — Wait for instructions then send wallet creation command
 expect {
@@ -63,7 +63,7 @@ expect {
 
 send_user "DEBUG: Waiting for wallet creation to complete...\n"
 
-# Step 4 — Wait for wallet creation to finish (don't try to capture keys)
+# Step 4 — Wait for wallet creation to finish, then export keys
 expect {
     -re "Aethir> " {
         send_user "✅ Wallet creation complete, CLI ready.\n"
@@ -74,6 +74,49 @@ expect {
         send_user "DEBUG: Export command sent\n"
         
         # Wait for export output and capture keys
+        set priv_key ""
+        set pub_key ""
+        
+        expect {
+            -re "Private key: (.*)" {
+                set priv_key $expect_out(1,string)
+                send_user "DEBUG: Private key captured from export\n"
+                exp_continue
+            }
+            -re "Public key: (.*)" {
+                set pub_key $expect_out(1,string)
+                send_user "DEBUG: Public key captured from export\n"
+                exp_continue
+            }
+            -re "Aethir> " {
+                send_user "✅ Export complete\n"
+                
+                # Save captured keys to file
+                if {[string length $priv_key] > 0 && [string length $pub_key] > 0} {
+                    set wallet_file [open "/root/wallet.json" w]
+                    puts $wallet_file "{\n  \"private_key\": \"$priv_key\",\n  \"public_key\": \"$pub_key\"\n}"
+                    close $wallet_file
+                    send_user "✅ Wallet keys saved to /root/wallet.json\n"
+                } else {
+                    send_user "❌ Failed to capture wallet keys from export\n"
+                }
+                
+                send "exit\r"
+                expect eof
+            }
+            timeout {
+                send_user "DEBUG: Timeout waiting for export\n"
+                send "exit\r"
+                expect eof
+            }
+        }
+    }
+    -re ".*" {
+        send_user "DEBUG: Got some output, trying export anyway...\n"
+        send "aethir wallet export\r"
+        send_user "DEBUG: Export command sent\n"
+        
+        # Wait for export output
         set priv_key ""
         set pub_key ""
         
