@@ -32,16 +32,8 @@ expect {
     }
 }
 
-# Step 2 — Wait for initialization to complete and CLI prompt to appear
-expect {
-    -re "Please create a wallet.*wallet create.*" {
-        # Wait for the actual Aethir> prompt after this message
-        expect -re "Aethir> "
-    }
-    -re "Aethir> " {
-        # Direct prompt without the wallet creation message
-    }
-}
+# Step 2 — Wait for initialization to complete and ONLY the Aethir> prompt
+expect -re "Aethir> "
 
 # Step 3 — Send wallet creation command once
 send "aethir wallet create\r"
