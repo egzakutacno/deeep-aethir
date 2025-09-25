@@ -1,0 +1,19 @@
+[Unit]
+Description=Aethir Checker Installation and Wallet Creation
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root
+ExecStart=/root/automate_aethir.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aethir-installation
+
+# Environment variables
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
