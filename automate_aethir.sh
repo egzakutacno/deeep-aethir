@@ -43,19 +43,20 @@ expect {
 
 send_user "DEBUG: Waiting for Aethir> prompt...\n"
 
-# Step 2 — Wait for "Aethir> " prompt then send wallet creation command
+# Step 2 — Wait for instructions then send wallet creation command
 expect {
-    -re "Aethir> " {
-        send_user "DEBUG: Detected Aethir> prompt, waiting 3 seconds...\n"
-        sleep 3
+    -re "Please create a wallet" {
+        send_user "DEBUG: Detected instructions, waiting 2 seconds...\n"
+        sleep 2
         send_user "DEBUG: Sending command: aethir wallet create\n"
         send "aethir wallet create\r"
-        send_user "DEBUG: Command sent successfully, waiting for wallet creation to start...\n"
-        # Wait a bit more to ensure the command is processed
-        sleep 5
+        send_user "DEBUG: Command sent successfully, waiting for wallet creation...\n"
+        # Wait for wallet creation to complete
+        sleep 10
+        send_user "DEBUG: Wallet creation should be complete\n"
     }
     timeout {
-        send_user "DEBUG: Timeout waiting for Aethir> prompt\n"
+        send_user "DEBUG: Timeout waiting for instructions\n"
         exit 1
     }
 }
