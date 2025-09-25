@@ -71,6 +71,7 @@ expect {
     }
     -re "Aethir> " {
         send_user "\n✅ Wallet creation complete, CLI ready.\n"
+        interact
     }
     timeout {
         send_user "DEBUG: Timeout waiting for wallet creation completion\n"
