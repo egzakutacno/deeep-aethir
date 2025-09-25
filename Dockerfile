@@ -17,9 +17,14 @@ RUN apt-get update && \
     file \
     nano \
     expect \
+    python3 \
+    python3-pip \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# Install pexpect for Python automation
+RUN pip3 install pexpect
 
 # Install Node.js 22 (required for Riptide)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
