@@ -1,7 +1,9 @@
 [Unit]
 Description=Aethir Wallet Watcher - Start Riptide after wallet creation
-After=aethir-installation.service
-Wants=aethir-installation.service
+# After=aethir-installation.service
+# Wants=aethir-installation.service
+After=multi-user.target
+Wants=multi-user.target
 
 [Service]
 Type=simple

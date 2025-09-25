@@ -62,9 +62,9 @@ RUN mkdir -p /root/src && chmod +x /root/src/hooks.js
 # Copy Riptide systemd service (disabled by default)
 COPY aethir-riptide.service /etc/systemd/system/aethir-riptide.service
 
-# Copy Aethir installation service
+# Copy Aethir installation service (DISABLED FOR MANUAL TESTING)
 COPY aethir-installation.service /etc/systemd/system/aethir-installation.service
-RUN systemctl enable aethir-installation.service
+# RUN systemctl enable aethir-installation.service
 
 # Copy wallet watcher script and service
 COPY start-riptide-after-wallet.sh /root/start-riptide-after-wallet.sh
