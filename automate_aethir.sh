@@ -3,7 +3,6 @@ set -e
 
 echo "[1/3] Running install.sh ..."
 
-# Correct install.sh path
 INSTALL_PATH="/root/AethirCheckerCLI-linux/install.sh"
 if [ -f "$INSTALL_PATH" ]; then
     bash "$INSTALL_PATH"
@@ -12,161 +11,61 @@ else
     exit 1
 fi
 
-echo "[2/3] Running wallet automation..."
+echo "[2/3] Running Python wallet automation..."
 
-# Ensure expect is installed
-if ! command -v expect &> /dev/null; then
-    echo "Installing expect..."
-    apt update && apt install -y expect
-fi
+python3 <<'EOF'
+import pexpect, sys, re, json
 
-# Automate Aethir CLI interaction
-expect << 'EOF'
-set timeout 60
-log_file -noappend /tmp/aethir_interaction.log
-spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
+print("🚀 Starting Aethir CLI with pexpect...")
+child = pexpect.spawn("/root/AethirCheckerCLI-linux/AethirCheckerCLI", encoding="utf-8", timeout=60)
+child.logfile = sys.stdout
 
-send_user "DEBUG: CLI spawned, waiting for Y/N prompt...\n"
+wallet = {"private_key": None, "public_key": None}
 
-# Step 1 — Accept Terms of Service once
-expect {
-    -re "Y/N:" {
-        send_user "DEBUG: Detected Y/N prompt, sending y...\n"
-        sleep 1
-        send "y\r"
-    }
-    timeout {
-        send_user "DEBUG: Timeout waiting for Y/N prompt\n"
-        exit 1
-    }
-}
+try:
+    print("📋 Waiting for Terms of Service prompt...")
+    child.expect("Y/N:")
+    child.sendline("y")
+    print("✅ Accepted Terms of Service")
 
-send_user "DEBUG: Waiting for instructions...\n"
+    child.expect("Aethir>")
+    child.sendline("aethir wallet create")
+    print("🔑 Creating wallet...")
 
-# Step 2 — Wait for instructions then send wallet creation command
-expect {
-    -re "Please create a wallet" {
-        send_user "DEBUG: Detected instructions, waiting 2 seconds...\n"
-        sleep 2
-        send_user "DEBUG: Sending command: aethir wallet create\n"
-        send "aethir wallet create\r"
-        send_user "DEBUG: Command sent successfully, waiting for wallet creation...\n"
-        # Wait longer for wallet creation to complete
-        sleep 15
-        send_user "DEBUG: Wallet creation should be complete\n"
-    }
-    timeout {
-        send_user "DEBUG: Timeout waiting for instructions\n"
-        exit 1
-    }
-}
+    child.expect("Aethir>")
+    child.sendline("aethir wallet export")
+    print("📤 Exporting wallet keys...")
 
-send_user "DEBUG: Waiting for wallet creation to complete...\n"
+    # Capture output until next prompt
+    child.expect("Aethir>")
+    output = child.before
 
-# Step 4 — Wait for wallet creation to finish, then export keys
-expect {
-    -re "Aethir> " {
-        send_user "✅ Wallet creation complete, CLI ready.\n"
-        send_user "DEBUG: Now exporting wallet keys...\n"
-        
-        # Step 5 — Export wallet keys
-        sleep 3
-        send "aethir wallet export\r"
-        send_user "DEBUG: Export command sent\n"
-        
-        # Wait for export output and capture keys
-        set priv_key ""
-        set pub_key ""
-        
-        expect {
-            -re "Private key: (.*)" {
-                set priv_key $expect_out(1,string)
-                send_user "DEBUG: Private key captured from export\n"
-                exp_continue
-            }
-            -re "Public key: (.*)" {
-                set pub_key $expect_out(1,string)
-                send_user "DEBUG: Public key captured from export\n"
-                exp_continue
-            }
-            -re "Aethir> " {
-                send_user "✅ Export complete\n"
-                
-                # Save captured keys to file
-                if {[string length $priv_key] > 0 && [string length $pub_key] > 0} {
-                    set wallet_file [open "/root/wallet.json" w]
-                    puts $wallet_file "{\n  \"private_key\": \"$priv_key\",\n  \"public_key\": \"$pub_key\"\n}"
-                    close $wallet_file
-                    send_user "✅ Wallet keys saved to /root/wallet.json\n"
-                } else {
-                    send_user "❌ Failed to capture wallet keys from export\n"
-                }
-                
-                send "exit\r"
-                expect eof
-            }
-            timeout {
-                send_user "DEBUG: Timeout waiting for export\n"
-                send "exit\r"
-                expect eof
-            }
-        }
-    }
-    -re ".*" {
-        send_user "DEBUG: Got some output, trying export anyway...\n"
-        sleep 3
-        send "aethir wallet export\r"
-        send_user "DEBUG: Export command sent\n"
-        
-        # Wait for export output
-        set priv_key ""
-        set pub_key ""
-        
-        expect {
-            -re "Private key: (.*)" {
-                set priv_key $expect_out(1,string)
-                send_user "DEBUG: Private key captured from export\n"
-                exp_continue
-            }
-            -re "Public key: (.*)" {
-                set pub_key $expect_out(1,string)
-                send_user "DEBUG: Public key captured from export\n"
-                exp_continue
-            }
-            -re "Aethir> " {
-                send_user "✅ Export complete\n"
-                
-                # Save captured keys to file
-                if {[string length $priv_key] > 0 && [string length $pub_key] > 0} {
-                    set wallet_file [open "/root/wallet.json" w]
-                    puts $wallet_file "{\n  \"private_key\": \"$priv_key\",\n  \"public_key\": \"$pub_key\"\n}"
-                    close $wallet_file
-                    send_user "✅ Wallet keys saved to /root/wallet.json\n"
-                } else {
-                    send_user "❌ Failed to capture wallet keys from export\n"
-                }
-                
-                send "exit\r"
-                expect eof
-            }
-            timeout {
-                send_user "DEBUG: Timeout waiting for export\n"
-                send "exit\r"
-                expect eof
-            }
-        }
-    }
-    timeout {
-        send_user "DEBUG: Timeout waiting for wallet creation completion\n"
-        exit 1
-    }
-}
+    # Extract keys
+    priv_match = re.search(r"Current private key:\s*([\s\S]+?)\n", output)
+    pub_match = re.search(r"Current public key:\s*([0-9a-f]+)", output)
 
+    if priv_match:
+        wallet["private_key"] = priv_match.group(1).strip()
+    if pub_match:
+        wallet["public_key"] = pub_match.group(1).strip()
+
+    # Save keys
+    with open("/root/wallet.json", "w") as f:
+        json.dump(wallet, f, indent=2)
+
+    print("✅ Wallet keys saved to /root/wallet.json")
+
+except pexpect.TIMEOUT:
+    print("❌ Timeout while waiting for CLI output")
+    sys.exit(1)
+except pexpect.EOF:
+    print("❌ Process ended unexpectedly")
+    sys.exit(1)
 EOF
 
-echo "[3/3] Wallet automation complete."
+echo "[3/3] Wallet automation complete!"
 
-# Check if wallet.json was created by the expect script
+# Check if wallet.json was created
 if [ -f "/root/wallet.json" ]; then
     echo "✅ Wallet keys successfully saved to /root/wallet.json"
     echo "📄 Wallet contents:"
