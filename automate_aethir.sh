@@ -80,7 +80,7 @@ chmod +x /tmp/wallet_auto.exp
 
 # Run the expect script
 echo "🚀 Running wallet automation..."
-/tmp/wallet_auto.exp
+expect /tmp/wallet_auto.exp
 
 echo "[3/3] Wallet automation complete!"
 
