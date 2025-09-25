@@ -9,15 +9,16 @@ else
 fi
 
 echo "[2/3] Running wallet automation..."
-cat << 'EOF' > /root/aethir_expect.sh
-#!/usr/bin/expect -f
-set timeout 120
 
-# If wallet.json already exists, skip
-if {[file exists "/root/wallet.json"]} {
-    puts "wallet.json already exists. Skipping wallet creation."
+# Check if wallet already exists
+if [ -f "/root/wallet.json" ]; then
+    echo "wallet.json already exists. Skipping wallet creation."
     exit 0
-}
+fi
+
+# Run the expect automation directly
+expect << 'EOF'
+set timeout 120
 
 # Run the CLI
 spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
@@ -55,6 +56,4 @@ send "exit\r"
 expect eof
 EOF
 
-chmod +x /root/aethir_expect.sh
-echo "[3/3] Running expect script..."
-/root/aethir_expect.sh
+echo "[3/3] Wallet automation completed!"
