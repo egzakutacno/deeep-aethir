@@ -16,61 +16,34 @@ if [ -f "/root/wallet.json" ]; then
     exit 0
 fi
 
-# Run the expect automation directly
-expect << 'EOF'
-set timeout 120
-
-# Run the CLI
-spawn /root/AethirCheckerCLI-linux/AethirCheckerCLI
-
-# Accept Terms
-expect "Y/N:"
-send "y\r"
-
-# Wait for wallet prompt (handle terminal control sequences)
-expect {
-    "Aethir>" {
-        send "aethir wallet create\r"
-    }
-    -re "\\^\\[\\[.*R" {
-        # Skip terminal control sequences like ^[[73;1R
-        exp_continue
-    }
-    timeout {
-        puts "Timeout waiting for Aethir prompt"
-        exit 1
-    }
-}
-
-# Wait for "Current private key:" then capture the key (skip the empty line)
-expect "Current private key:"
-expect "\r\n"
-expect -re "(.+)\r\n"
-set privkey $expect_out(1,string)
-
-# Wait for "Current public key:" then capture the key (skip the empty line)
-expect "Current public key:"
-expect "\r\n"
-expect -re "(.+)\r\n"
-set pubkey $expect_out(1,string)
-
-# Debug: Print what we captured
-puts "DEBUG: Captured private key: $privkey"
-puts "DEBUG: Captured public key: $pubkey"
-
-# Save to JSON file inside container
-set fp [open "/root/wallet.json" "w"]
-puts $fp "{"
-puts $fp "  \"private_key\": \"$privkey\","
-puts $fp "  \"public_key\": \"$pubkey\""
-puts $fp "}"
-close $fp
-
-puts "Wallet keys saved successfully!"
-
-# Exit the CLI cleanly
-send "exit\r"
-expect eof
+# Record the session and parse the output using script command
+echo "Starting Aethir CLI session..."
+script -q /tmp/aethir_session.log -c '/root/AethirCheckerCLI-linux/AethirCheckerCLI' << 'EOF'
+y
+aethir wallet create
+exit
 EOF
+
+echo "Session completed. Parsing output..."
+
+# Parse the log file for keys
+privkey=$(grep -A1 "Current private key:" /tmp/aethir_session.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+pubkey=$(grep -A1 "Current public key:" /tmp/aethir_session.log | tail -n1 | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+echo "DEBUG: Captured private key: $privkey"
+echo "DEBUG: Captured public key: $pubkey"
+
+# Save to JSON file
+cat > /root/wallet.json << JSON_EOF
+{
+  "private_key": "$privkey",
+  "public_key": "$pubkey"
+}
+JSON_EOF
+
+echo "Wallet keys saved successfully!"
+
+# Clean up
+rm -f /tmp/aethir_session.log
 
 echo "[3/3] Wallet automation completed!"
