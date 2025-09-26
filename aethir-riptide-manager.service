@@ -1,0 +1,21 @@
+[Unit]
+Description=Aethir Riptide Manager
+After=multi-user.target
+Wants=multi-user.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/usr/lib/node_modules/@deeep-network/riptide/dist/cli.js start --config riptide.config.json --hooks hooks.js
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aethir-riptide-manager
+
+# Environment variables
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
