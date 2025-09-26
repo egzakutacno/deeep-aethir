@@ -109,16 +109,22 @@ class AethirCLI:
                     typer.echo("⏳ Waiting for wallet export completion...")
                     time.sleep(3)
                     
-                    # After getting the keys, we're done - close stdin and let CLI continue running
-                    typer.echo("✅ Keys captured successfully, stopping interaction...")
-                    break
+                elif "aethir exit" in command:
+                    # Wait for CLI to exit properly
+                    typer.echo("⏳ Waiting for CLI to exit...")
+                    time.sleep(2)
             
-            # Close stdin to stop sending commands (but let CLI keep running)
+            # Close stdin after sending all commands
             self.process.stdin.close()
             
-            # Don't wait for process to complete - let it keep running in background
-            typer.echo("⏳ CLI will continue running in background...")
-            time.sleep(2)  # Give a moment for final output
+            # Wait for process to complete (since we sent aethir exit)
+            typer.echo("⏳ Waiting for CLI to exit completely...")
+            try:
+                self.process.wait(timeout=10)
+                typer.echo("✅ CLI exited successfully")
+            except subprocess.TimeoutExpired:
+                typer.echo("⚠️ CLI didn't exit in time, but that's OK")
+                time.sleep(2)  # Give a moment for final output
             
             # Join the reader thread
             typer.echo("⏳ Joining reader thread...")
@@ -208,8 +214,8 @@ def create_wallet() -> None:
         commands = [
             "y",  # Accept TOS
             "aethir wallet create",  # Create wallet
-            "aethir wallet export"  # Export keys
-            # Note: No exit command - we'll just stop interacting after getting keys
+            "aethir wallet export",  # Export keys
+            "aethir exit"  # Properly exit the CLI
         ]
         
         typer.echo("🚀 Starting interactive session...")
