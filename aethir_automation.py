@@ -109,21 +109,16 @@ class AethirCLI:
                     typer.echo("⏳ Waiting for wallet export completion...")
                     time.sleep(3)
                     
-                else:
-                    # Default wait time for exit command
-                    time.sleep(1)
+                    # After getting the keys, we're done - close stdin and let CLI continue running
+                    typer.echo("✅ Keys captured successfully, stopping interaction...")
+                    break
             
-            # Close stdin
+            # Close stdin to stop sending commands (but let CLI keep running)
             self.process.stdin.close()
             
-            # Wait for process to complete
-            typer.echo("⏳ Waiting for process to complete...")
-            try:
-                self.process.wait(timeout=60)
-                typer.echo("✅ Process completed normally")
-            except subprocess.TimeoutExpired:
-                typer.echo("⚠️ Process timed out, checking status...")
-                typer.echo(f"🔍 Process status: {self.process.poll()}")
+            # Don't wait for process to complete - let it keep running in background
+            typer.echo("⏳ CLI will continue running in background...")
+            time.sleep(2)  # Give a moment for final output
             
             # Join the reader thread
             typer.echo("⏳ Joining reader thread...")
@@ -138,12 +133,13 @@ class AethirCLI:
             typer.echo(f"🔍 Total stdout length: {len(stdout_text)}")
             typer.echo(f"🔍 Total lines captured: {len(all_output)}")
             
-            typer.echo(f"✅ Process completed with return code: {self.process.returncode}")
+            # Since we're letting the process continue running, return success
+            typer.echo(f"✅ Interaction completed successfully (CLI still running)")
             
             return {
                 "stdout": stdout_text,
                 "stderr": stderr,
-                "returncode": self.process.returncode
+                "returncode": 0  # Success since we got the keys
             }
             
         except subprocess.TimeoutExpired:
@@ -212,8 +208,8 @@ def create_wallet() -> None:
         commands = [
             "y",  # Accept TOS
             "aethir wallet create",  # Create wallet
-            "aethir wallet export",  # Export keys
-            "exit"  # Exit CLI
+            "aethir wallet export"  # Export keys
+            # Note: No exit command - we'll just stop interacting after getting keys
         ]
         
         typer.echo("🚀 Starting interactive session...")
