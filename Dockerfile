@@ -74,9 +74,9 @@ RUN ln -sf /root/src/hooks.js /root/hooks.js
 # Copy Riptide systemd service (disabled by default)
 COPY aethir-riptide.service /etc/systemd/system/aethir-riptide.service
 
-# Copy Riptide Manager service (enabled by default)
+# Copy Riptide Manager service (disabled by default - started by wallet watcher)
 COPY aethir-riptide-manager.service /etc/systemd/system/aethir-riptide-manager.service
-RUN systemctl enable aethir-riptide-manager.service
+RUN systemctl disable aethir-riptide-manager.service
 
 # Copy Aethir installation service (ENABLED TO TEST BREAKTHROUGH)
 COPY aethir-installation.service /etc/systemd/system/aethir-installation.service
