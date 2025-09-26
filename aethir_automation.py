@@ -503,7 +503,8 @@ def parse_license_output(output: str) -> Optional[Dict[str, Any]]:
 @app.command()
 def basic_status():
     """Get basic Aethir status without running CLI"""
-    typer.echo("🔍 Getting basic Aethir status...")
+    # Don't echo debug messages when called from hooks
+    # typer.echo("🔍 Getting basic Aethir status...")
     
     status_data = {
         "wallet_exists": os.path.exists(WALLET_JSON_PATH),
@@ -522,8 +523,8 @@ def basic_status():
         except Exception as e:
             status_data["wallet_error"] = str(e)
     
-    # Print as JSON for hooks to consume
-    typer.echo(json.dumps(status_data, indent=2))
+    # Print ONLY JSON for hooks to consume (no emojis or debug messages)
+    print(json.dumps(status_data, indent=2))
 
 @app.command()
 def automate() -> None:
