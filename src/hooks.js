@@ -95,6 +95,64 @@ module.exports = {
         }
       }
 
+      // Check Aethir license status
+      let aethirLicenseStatus = null;
+      try {
+        const result = await utils.execCommand('/root/AethirCheckerCLI-linux/AethirCheckerCLI license summary', {
+          timeout: 30000,
+          cwd: '/root'
+        });
+        
+        if (result.exitCode === 0) {
+          // Parse the license summary output
+          const lines = result.stdout.split('\n');
+          const licenseData = {};
+          
+          for (const line of lines) {
+            if (line.includes('Checking')) {
+              const match = line.match(/(\d+)\s+Checking/);
+              if (match) licenseData.checking = parseInt(match[1]);
+            } else if (line.includes('Ready')) {
+              const match = line.match(/(\d+)\s+Ready/);
+              if (match) licenseData.ready = parseInt(match[1]);
+            } else if (line.includes('Offline')) {
+              const match = line.match(/(\d+)\s+Offline/);
+              if (match) licenseData.offline = parseInt(match[1]);
+            } else if (line.includes('Banned')) {
+              const match = line.match(/(\d+)\s+Banned/);
+              if (match) licenseData.banned = parseInt(match[1]);
+            } else if (line.includes('Pending')) {
+              const match = line.match(/(\d+)\s+Pending/);
+              if (match) licenseData.pending = parseInt(match[1]);
+            } else if (line.includes('Total Delegated')) {
+              const match = line.match(/(\d+)\s+Total Delegated/);
+              if (match) licenseData.total_delegated = parseInt(match[1]);
+            }
+          }
+          
+          aethirLicenseStatus = {
+            ...licenseData,
+            cli_accessible: true,
+            last_check: new Date().toISOString()
+          };
+          
+          logger.info('Aethir license status retrieved', aethirLicenseStatus);
+        } else {
+          aethirLicenseStatus = {
+            cli_accessible: false,
+            error: result.stderr,
+            last_check: new Date().toISOString()
+          };
+        }
+      } catch (error) {
+        logger.warn('Could not get Aethir license status', { error: error.message });
+        aethirLicenseStatus = {
+          cli_accessible: false,
+          error: error.message,
+          last_check: new Date().toISOString()
+        };
+      }
+
       // Check if Aethir service is running
       let aethirServiceStatus = 'unknown';
       try {
@@ -113,6 +171,10 @@ module.exports = {
         wallet: {
           exists: walletExists,
           info: walletInfo
+        },
+        aethir: {
+          service_status: aethirServiceStatus,
+          license_status: aethirLicenseStatus
         },
         services: {
           aethir_checker: aethirServiceStatus,
