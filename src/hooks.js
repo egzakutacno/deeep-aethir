@@ -78,7 +78,7 @@ module.exports = {
     }
   },
 
-  status: async ({ logger }) => {
+  status: async ({ logger, utils }) => {
     // Enhanced status with detailed system information
     try {
       const walletExists = await utils.fileExists('/root/wallet.json');
@@ -101,7 +101,7 @@ module.exports = {
       let aethirLicenseStatus = null;
       try {
         const result = await utils.execCommand('/usr/bin/python3 /root/aethir_automation.py license-status', {
-          timeout: 30000,
+          timeout: 45000, // Increased timeout for retry logic
           cwd: '/root'
         });
         
@@ -116,14 +116,19 @@ module.exports = {
           
           logger.info('Aethir license status retrieved via Typer', aethirLicenseStatus);
         } else {
+          logger.warn('Typer command failed', { 
+            exitCode: result.exitCode, 
+            stderr: result.stderr,
+            stdout: result.stdout 
+          });
           aethirLicenseStatus = {
             cli_accessible: false,
-            error: result.stderr,
+            error: result.stderr || 'Unknown error',
             last_check: new Date().toISOString()
           };
         }
       } catch (error) {
-        logger.warn('Could not get Aethir license status via Typer', { error: error.message });
+        logger.error('Could not get Aethir license status via Typer', { error: error.message });
         aethirLicenseStatus = {
           cli_accessible: false,
           error: error.message,
@@ -168,7 +173,7 @@ module.exports = {
         service: 'aethir-checker'
       };
     } catch (error) {
-      logger.error('Status check error', { error: error.message });
+      logger.error('Status check error', { error: error.message, stack: error.stack });
       return {
         status: 'unhealthy',
         error: error.message,

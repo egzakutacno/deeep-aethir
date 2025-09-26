@@ -412,21 +412,53 @@ def license_status():
     cli = AethirCLI()
     
     try:
-        # Run license summary command
-        result = cli.run_command("license summary", timeout=30)
+        # First, try to kill any existing Aethir processes to ensure clean state
+        try:
+            subprocess.run(['pkill', '-f', 'AethirCheckerCLI'], check=False, capture_output=True)
+            time.sleep(1)
+        except:
+            pass
         
-        if result.returncode != 0:
-            typer.echo(f"❌ License command failed: {result.stderr}", err=True)
-            return
-        
-        # Parse the license output
-        license_data = parse_license_output(result.stdout)
-        
-        if license_data:
-            # Print as JSON for hooks to consume
-            typer.echo(json.dumps(license_data, indent=2))
-        else:
-            typer.echo("❌ Could not parse license data", err=True)
+        # Run license summary command with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                result = cli.run_command("license summary", timeout=15)
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    # Parse the license output
+                    license_data = parse_license_output(result.stdout)
+                    
+                    if license_data:
+                        # Print as JSON for hooks to consume
+                        typer.echo(json.dumps(license_data, indent=2))
+                        return
+                
+                # If we get here, the command didn't work properly
+                if attempt < max_retries - 1:
+                    typer.echo(f"⚠️ Attempt {attempt + 1} failed, retrying...", err=True)
+                    time.sleep(2)
+                    continue
+                else:
+                    typer.echo(f"❌ License command failed after {max_retries} attempts: {result.stderr}", err=True)
+                    return
+                    
+            except subprocess.TimeoutExpired:
+                if attempt < max_retries - 1:
+                    typer.echo(f"⚠️ Attempt {attempt + 1} timed out, retrying...", err=True)
+                    time.sleep(2)
+                    continue
+                else:
+                    typer.echo("❌ License command timed out after multiple attempts", err=True)
+                    return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    typer.echo(f"⚠️ Attempt {attempt + 1} failed with error: {e}, retrying...", err=True)
+                    time.sleep(2)
+                    continue
+                else:
+                    typer.echo(f"❌ License command failed after {max_retries} attempts: {e}", err=True)
+                    return
             
     except Exception as e:
         typer.echo(f"❌ Error getting license status: {e}", err=True)
