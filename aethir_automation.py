@@ -83,7 +83,7 @@ class AethirCLI:
             reader_thread.daemon = True
             reader_thread.start()
             
-            # Send commands with proper timing
+            # Send commands with proper timing based on actual CLI flow
             typer.echo("🚀 Starting interactive session...")
             
             for i, command in enumerate(commands):
@@ -92,22 +92,22 @@ class AethirCLI:
                 self.process.stdin.flush()
                 
                 if command == "y":
-                    # Wait for TOS acceptance and initialization
-                    typer.echo("⏳ Waiting for TOS acceptance and CLI initialization...")
-                    time.sleep(5)
+                    # Wait for TOS acceptance, "Client is starting up...", "Initializing...", and instructions
+                    typer.echo("⏳ Waiting for TOS acceptance, CLI startup, initialization, and Aethir> prompt...")
+                    time.sleep(10)  # Need more time for full initialization
                     
                 elif "wallet create" in command:
-                    # Wait for wallet creation to complete
-                    typer.echo("⏳ Waiting for wallet creation...")
-                    time.sleep(3)
+                    # Wait for wallet creation, keys display, and next Aethir> prompt
+                    typer.echo("⏳ Waiting for wallet creation and keys display...")
+                    time.sleep(5)
                     
                 elif "wallet export" in command:
-                    # Wait for export to complete
-                    typer.echo("⏳ Waiting for wallet export...")
-                    time.sleep(2)
+                    # Wait for export completion and keys display
+                    typer.echo("⏳ Waiting for wallet export completion...")
+                    time.sleep(3)
                     
                 else:
-                    # Default wait time
+                    # Default wait time for exit command
                     time.sleep(1)
             
             # Close stdin
@@ -277,27 +277,43 @@ def show_wallet() -> None:
         raise typer.Exit(1)
 
 def parse_wallet_output(output: str) -> Optional[Dict[str, str]]:
-    """Parse wallet keys from CLI output"""
+    """Parse wallet keys from CLI output based on actual format"""
     try:
         lines = output.split('\n')
         private_key = None
         public_key = None
         
+        # Look for the export output (more reliable than create output)
+        in_export_section = False
+        
         for i, line in enumerate(lines):
-            if "Current private key:" in line:
-                # Look for the key in the next few lines
-                for j in range(i+1, min(i+10, len(lines))):
-                    key_line = lines[j].strip()
-                    if key_line and not key_line.startswith("Current"):
-                        private_key = key_line
-                        break
-            
-            elif "Current public key:" in line:
-                # Public key is usually on the same line or next line
-                if ":" in line:
-                    public_key = line.split(":")[1].strip()
-                elif i+1 < len(lines):
-                    public_key = lines[i+1].strip()
+            if "aethir wallet export" in line:
+                in_export_section = True
+                continue
+                
+            if in_export_section:
+                if "Current private key:" in line:
+                    # Look for the base64 key in the next few lines
+                    for j in range(i+1, min(i+15, len(lines))):
+                        key_line = lines[j].strip()
+                        if key_line and len(key_line) > 50 and not key_line.startswith("Current"):
+                            private_key = key_line
+                            break
+                
+                elif "Current public key:" in line:
+                    # Look for the hex key in the next few lines
+                    for j in range(i+1, min(i+5, len(lines))):
+                        key_line = lines[j].strip()
+                        if key_line and len(key_line) == 40 and not key_line.startswith("Current"):
+                            public_key = key_line
+                            break
+                
+                # Stop at the next Aethir> prompt or ***************************************
+                if line.strip().startswith("Aethir>") or "***************************************" in line:
+                    break
+        
+        typer.echo(f"🔍 Parsed private key: {'Found' if private_key else 'Not found'}")
+        typer.echo(f"🔍 Parsed public key: {'Found' if public_key else 'Not found'}")
         
         if private_key and public_key:
             return {
