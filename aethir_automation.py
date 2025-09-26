@@ -58,28 +58,39 @@ class AethirCLI:
                 text=True
             )
             
-            # Send commands sequentially
-            for i, command in enumerate(commands):
-                typer.echo(f"📤 Sending command {i+1}: {command}")
-                self.process.stdin.write(command + "\n")
-                self.process.stdin.flush()
-                time.sleep(2)  # Give CLI time to process
+            # Send all commands at once
+            full_input = "\n".join(commands) + "\n"
+            typer.echo(f"📤 Sending commands: {commands}")
             
-            # Close stdin and get output
+            # Send all commands and close stdin immediately
+            self.process.stdin.write(full_input)
             self.process.stdin.close()
-            stdout, stderr = self.process.communicate(timeout=60)
             
-            return {
-                "stdout": stdout,
-                "stderr": stderr,
-                "returncode": self.process.returncode
-            }
+            # Wait for process to complete with timeout
+            try:
+                stdout, stderr = self.process.communicate(timeout=120)
+                typer.echo(f"✅ Process completed with return code: {self.process.returncode}")
+                
+                return {
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "returncode": self.process.returncode
+                }
+            except subprocess.TimeoutExpired:
+                typer.echo("⚠️ Process timed out, terminating...")
+                self.process.kill()
+                stdout, stderr = self.process.communicate()
+                return {
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "returncode": self.process.returncode
+                }
             
         except Exception as e:
             typer.echo(f"❌ Interactive session error: {e}", err=True)
             raise
         finally:
-            if self.process:
+            if self.process and self.process.poll() is None:
                 self.process.terminate()
 
 @app.command()
@@ -146,6 +157,10 @@ def create_wallet() -> None:
                 typer.echo(f"Error: {result['stderr']}", err=True)
             raise typer.Exit(1)
         
+        # Debug: Show the raw output
+        typer.echo(f"🔍 CLI stdout length: {len(result['stdout'])}")
+        typer.echo(f"🔍 CLI stderr: {result['stderr']}")
+        
         # Parse the output to extract keys
         wallet_data = parse_wallet_output(result["stdout"])
         
@@ -154,7 +169,7 @@ def create_wallet() -> None:
             typer.echo("✅ Wallet created and saved successfully!")
         else:
             typer.echo("❌ Failed to extract wallet keys from output", err=True)
-            typer.echo(f"CLI Output:\n{result['stdout']}", err=True)
+            typer.echo(f"🔍 CLI Output (first 500 chars):\n{result['stdout'][:500]}", err=True)
             raise typer.Exit(1)
             
     except Exception as e:
