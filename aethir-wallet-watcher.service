@@ -6,12 +6,10 @@ After=multi-user.target
 Wants=multi-user.target
 
 [Service]
-Type=simple
+Type=oneshot
 User=root
 WorkingDirectory=/root
 ExecStart=/root/start-riptide-after-wallet.sh
-Restart=always
-RestartSec=10
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=aethir-wallet-watcher
