@@ -138,127 +138,70 @@ module.exports = {
     }
   },
 
-  // Additional hooks for enhanced functionality
+  // Core lifecycle and monitoring hooks (same category as heartbeat, status, health)
 
-  preStart: async ({ logger }) => {
-    logger.info('Pre-start hook: Preparing Aethir Checker environment');
+  ready: async ({ logger }) => {
+    logger.info('Ready hook: Aethir Checker service is ready');
     
     try {
-      // Ensure wallet exists before starting
+      // Check if all required components are ready
       const walletExists = await utils.fileExists('/root/wallet.json');
-      if (!walletExists) {
-        logger.warn('No wallet found, this might indicate an issue with wallet creation');
-        return { success: false, reason: 'No wallet found' };
-      }
+      const aethirCliExists = await utils.fileExists('/root/AethirCheckerCLI-linux/AethirCheckerCLI');
       
-      logger.info('Pre-start validation passed');
-      return { success: true };
-    } catch (error) {
-      logger.error('Pre-start hook error', { error: error.message });
-      return { success: false, error: error.message };
-    }
-  },
-
-  postStart: async ({ logger }) => {
-    logger.info('Post-start hook: Aethir Checker service started successfully');
-    
-    try {
-      // Log startup metrics
-      const walletExists = await utils.fileExists('/root/wallet.json');
-      logger.info('Service startup complete', {
-        wallet_ready: walletExists,
-        uptime: process.uptime(),
-        memory_usage: process.memoryUsage()
-      });
-      
-      return { success: true };
-    } catch (error) {
-      logger.error('Post-start hook error', { error: error.message });
-      return { success: false, error: error.message };
-    }
-  },
-
-  preStop: async ({ logger }) => {
-    logger.info('Pre-stop hook: Preparing to stop Aethir Checker service');
-    
-    try {
-      // Log shutdown metrics
-      logger.info('Service shutdown initiated', {
-        uptime: process.uptime(),
-        memory_usage: process.memoryUsage()
-      });
-      
-      return { success: true };
-    } catch (error) {
-      logger.error('Pre-stop hook error', { error: error.message });
-      return { success: false, error: error.message };
-    }
-  },
-
-  postStop: async ({ logger }) => {
-    logger.info('Post-stop hook: Aethir Checker service stopped');
-    
-    try {
-      // Cleanup or final logging
-      logger.info('Service shutdown complete', {
-        final_uptime: process.uptime()
-      });
-      
-      return { success: true };
-    } catch (error) {
-      logger.error('Post-stop hook error', { error: error.message });
-      return { success: false, error: error.message };
-    }
-  },
-
-  validate: async ({ logger }) => {
-    logger.info('Validation hook: Checking Aethir Checker configuration');
-    
-    try {
-      const checks = {
-        wallet_exists: false,
-        aethir_cli_exists: false,
-        aethir_service_active: false,
-        riptide_config_valid: false
-      };
-
-      // Check wallet
-      checks.wallet_exists = await utils.fileExists('/root/wallet.json');
-      
-      // Check Aethir CLI
-      checks.aethir_cli_exists = await utils.fileExists('/root/AethirCheckerCLI-linux/AethirCheckerCLI');
-      
-      // Check Aethir service
-      try {
-        const result = await utils.execCommand('systemctl is-active aethir-checker.service', {
-          timeout: 5000
+      if (!walletExists || !aethirCliExists) {
+        logger.warn('Service not ready - missing components', {
+          wallet_exists: walletExists,
+          aethir_cli_exists: aethirCliExists
         });
-        checks.aethir_service_active = result.stdout.trim() === 'active';
-      } catch (error) {
-        logger.warn('Could not check Aethir service status', { error: error.message });
+        return { ready: false, reason: 'Missing required components' };
       }
-
-      // Check Riptide config
-      try {
-        const configData = await fs.readFile('/root/riptide.config.json', 'utf8');
-        JSON.parse(configData);
-        checks.riptide_config_valid = true;
-      } catch (error) {
-        logger.warn('Riptide config validation failed', { error: error.message });
-      }
-
-      const allPassed = Object.values(checks).every(check => check === true);
       
-      logger.info('Validation complete', { checks, all_passed: allPassed });
+      logger.info('Service is ready', {
+        wallet_ready: walletExists,
+        aethir_cli_ready: aethirCliExists,
+        uptime: process.uptime()
+      });
       
-      return {
-        success: allPassed,
-        checks,
-        timestamp: new Date().toISOString()
-      };
+      return { ready: true };
     } catch (error) {
-      logger.error('Validation hook error', { error: error.message });
-      return { success: false, error: error.message };
+      logger.error('Ready hook error', { error: error.message });
+      return { ready: false, error: error.message };
+    }
+  },
+
+  probe: async ({ logger }) => {
+    logger.debug('Probe hook: Liveness probe for Aethir Checker');
+    
+    try {
+      // Quick liveness check - can the service respond?
+      const walletExists = await utils.fileExists('/root/wallet.json');
+      
+      if (!walletExists) {
+        logger.warn('Probe failed - no wallet found');
+        return { alive: false, reason: 'No wallet' };
+      }
+      
+      // Quick Aethir CLI check
+      try {
+        const result = await utils.execCommand('/root/AethirCheckerCLI-linux/AethirCheckerCLI --version', {
+          timeout: 5000,
+          cwd: '/root'
+        });
+        
+        if (result.exitCode === 0) {
+          logger.debug('Probe successful - service is alive');
+          return { alive: true };
+        } else {
+          logger.warn('Probe failed - Aethir CLI not responding');
+          return { alive: false, reason: 'CLI not responding' };
+        }
+      } catch (error) {
+        logger.warn('Probe failed - CLI check error', { error: error.message });
+        return { alive: false, reason: 'CLI check failed' };
+      }
+    } catch (error) {
+      logger.error('Probe hook error', { error: error.message });
+      return { alive: false, error: error.message };
     }
   },
 
@@ -310,77 +253,54 @@ module.exports = {
     }
   },
 
-  alerts: async ({ logger }) => {
-    logger.debug('Alerts hook: Checking for Aethir Checker alerts');
+  validate: async ({ logger }) => {
+    logger.info('Validation hook: Checking Aethir Checker configuration');
     
     try {
-      const alerts = [];
-      
-      // Check wallet status
-      const walletExists = await utils.fileExists('/root/wallet.json');
-      if (!walletExists) {
-        alerts.push({
-          level: 'critical',
-          message: 'Wallet not found',
-          timestamp: new Date().toISOString()
-        });
-      }
+      const checks = {
+        wallet_exists: false,
+        aethir_cli_exists: false,
+        aethir_service_active: false,
+        riptide_config_valid: false
+      };
 
-      // Check Aethir service status
+      // Check wallet
+      checks.wallet_exists = await utils.fileExists('/root/wallet.json');
+      
+      // Check Aethir CLI
+      checks.aethir_cli_exists = await utils.fileExists('/root/AethirCheckerCLI-linux/AethirCheckerCLI');
+      
+      // Check Aethir service
       try {
         const result = await utils.execCommand('systemctl is-active aethir-checker.service', {
           timeout: 5000
         });
-        if (result.stdout.trim() !== 'active') {
-          alerts.push({
-            level: 'warning',
-            message: 'Aethir service not active',
-            status: result.stdout.trim(),
-            timestamp: new Date().toISOString()
-          });
-        }
+        checks.aethir_service_active = result.stdout.trim() === 'active';
       } catch (error) {
-        alerts.push({
-          level: 'error',
-          message: 'Could not check Aethir service status',
-          error: error.message,
-          timestamp: new Date().toISOString()
-        });
+        logger.warn('Could not check Aethir service status', { error: error.message });
       }
 
-      // Check memory usage
-      const memUsage = process.memoryUsage();
-      const memUsageMB = memUsage.heapUsed / 1024 / 1024;
-      if (memUsageMB > 500) { // Alert if using more than 500MB
-        alerts.push({
-          level: 'warning',
-          message: 'High memory usage',
-          memory_mb: Math.round(memUsageMB),
-          timestamp: new Date().toISOString()
-        });
+      // Check Riptide config
+      try {
+        const configData = await fs.readFile('/root/riptide.config.json', 'utf8');
+        JSON.parse(configData);
+        checks.riptide_config_valid = true;
+      } catch (error) {
+        logger.warn('Riptide config validation failed', { error: error.message });
       }
 
-      if (alerts.length > 0) {
-        logger.warn('Alerts detected', { alert_count: alerts.length, alerts });
-      }
-
+      const allPassed = Object.values(checks).every(check => check === true);
+      
+      logger.info('Validation complete', { checks, all_passed: allPassed });
+      
       return {
-        alerts,
-        alert_count: alerts.length,
+        success: allPassed,
+        checks,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
-      logger.error('Alerts hook error', { error: error.message });
-      return {
-        alerts: [{
-          level: 'error',
-          message: 'Alerts check failed',
-          error: error.message,
-          timestamp: new Date().toISOString()
-        }],
-        alert_count: 1,
-        timestamp: new Date().toISOString()
-      };
+      logger.error('Validation hook error', { error: error.message });
+      return { success: false, error: error.message };
     }
   }
 };
