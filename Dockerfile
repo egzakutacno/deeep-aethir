@@ -68,6 +68,9 @@ COPY riptide.config.json /root/riptide.config.json
 COPY src/hooks.js /root/src/hooks.js
 RUN mkdir -p /root/src && chmod +x /root/src/hooks.js
 
+# Create symlink for Riptide CLI compatibility
+RUN ln -sf /root/src/hooks.js /root/hooks.js
+
 # Copy Riptide systemd service (disabled by default)
 COPY aethir-riptide.service /etc/systemd/system/aethir-riptide.service
 
