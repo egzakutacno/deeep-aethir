@@ -17,27 +17,29 @@ module.exports = {
   },
 
   health: async ({ logger, utils }) => {
-    logger.debug('Checking Aethir Checker health');
+    logger.debug('Checking Aethir Checker health via Typer');
     
     try {
-      // Run the health check command: aethir license summary
-      const result = await utils.execCommand('/root/AethirCheckerCLI-linux/AethirCheckerCLI license summary', {
+      // Use Typer to get license status for health check
+      const result = await utils.execCommand('/usr/bin/python3 /root/aethir_automation.py license-status', {
         timeout: 30000, // 30 seconds timeout
         cwd: '/root'
       });
       
       if (result.exitCode === 0) {
-        logger.debug('Aethir health check passed');
+        // Parse the JSON output to check if we got valid data
+        const licenseData = JSON.parse(result.stdout);
+        logger.debug('Aethir health check passed via Typer', { status: licenseData.status });
         return true;
       } else {
-        logger.warn('Aethir health check failed', {
+        logger.warn('Aethir health check failed via Typer', {
           exitCode: result.exitCode,
           stderr: result.stderr
         });
         return false;
       }
     } catch (error) {
-      logger.error('Health check error', { error: error.message });
+      logger.error('Health check error via Typer', { error: error.message });
       return false;
     }
   },
@@ -95,48 +97,24 @@ module.exports = {
         }
       }
 
-      // Check Aethir license status
+      // Check Aethir license status using Typer
       let aethirLicenseStatus = null;
       try {
-        const result = await utils.execCommand('/root/AethirCheckerCLI-linux/AethirCheckerCLI license summary', {
+        const result = await utils.execCommand('/usr/bin/python3 /root/aethir_automation.py license-status', {
           timeout: 30000,
           cwd: '/root'
         });
         
         if (result.exitCode === 0) {
-          // Parse the license summary output
-          const lines = result.stdout.split('\n');
-          const licenseData = {};
-          
-          for (const line of lines) {
-            if (line.includes('Checking')) {
-              const match = line.match(/(\d+)\s+Checking/);
-              if (match) licenseData.checking = parseInt(match[1]);
-            } else if (line.includes('Ready')) {
-              const match = line.match(/(\d+)\s+Ready/);
-              if (match) licenseData.ready = parseInt(match[1]);
-            } else if (line.includes('Offline')) {
-              const match = line.match(/(\d+)\s+Offline/);
-              if (match) licenseData.offline = parseInt(match[1]);
-            } else if (line.includes('Banned')) {
-              const match = line.match(/(\d+)\s+Banned/);
-              if (match) licenseData.banned = parseInt(match[1]);
-            } else if (line.includes('Pending')) {
-              const match = line.match(/(\d+)\s+Pending/);
-              if (match) licenseData.pending = parseInt(match[1]);
-            } else if (line.includes('Total Delegated')) {
-              const match = line.match(/(\d+)\s+Total Delegated/);
-              if (match) licenseData.total_delegated = parseInt(match[1]);
-            }
-          }
-          
+          // Parse the JSON output from Typer
+          const licenseData = JSON.parse(result.stdout);
           aethirLicenseStatus = {
             ...licenseData,
             cli_accessible: true,
             last_check: new Date().toISOString()
           };
           
-          logger.info('Aethir license status retrieved', aethirLicenseStatus);
+          logger.info('Aethir license status retrieved via Typer', aethirLicenseStatus);
         } else {
           aethirLicenseStatus = {
             cli_accessible: false,
@@ -145,7 +123,7 @@ module.exports = {
           };
         }
       } catch (error) {
-        logger.warn('Could not get Aethir license status', { error: error.message });
+        logger.warn('Could not get Aethir license status via Typer', { error: error.message });
         aethirLicenseStatus = {
           cli_accessible: false,
           error: error.message,

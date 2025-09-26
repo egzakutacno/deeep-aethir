@@ -405,6 +405,104 @@ def save_wallet_json(wallet_data: Dict[str, str]) -> None:
         raise
 
 @app.command()
+def license_status():
+    """Get Aethir license status and return as JSON"""
+    typer.echo("🔍 Getting Aethir license status...")
+    
+    cli = AethirCLI()
+    
+    try:
+        # Run license summary command
+        result = cli.run_command("license summary", timeout=30)
+        
+        if result.returncode != 0:
+            typer.echo(f"❌ License command failed: {result.stderr}", err=True)
+            return
+        
+        # Parse the license output
+        license_data = parse_license_output(result.stdout)
+        
+        if license_data:
+            # Print as JSON for hooks to consume
+            typer.echo(json.dumps(license_data, indent=2))
+        else:
+            typer.echo("❌ Could not parse license data", err=True)
+            
+    except Exception as e:
+        typer.echo(f"❌ Error getting license status: {e}", err=True)
+
+def parse_license_output(output: str) -> Optional[Dict[str, Any]]:
+    """Parse license summary output and return structured data"""
+    try:
+        lines = output.split('\n')
+        license_data = {
+            "checking": 0,
+            "ready": 0,
+            "offline": 0,
+            "banned": 0,
+            "pending": 0,
+            "total_delegated": 0,
+            "status": "unknown",
+            "message": ""
+        }
+        
+        # Check for "No licenses delegated" message
+        if "No licenses delegated to your burner wallet" in output:
+            license_data["status"] = "ready_to_receive"
+            license_data["message"] = "Wallet ready, waiting for delegations"
+            return license_data
+        
+        # Parse license counts
+        for line in lines:
+            if "Checking" in line:
+                match = line.split()
+                if len(match) >= 2:
+                    license_data["checking"] = int(match[0])
+            elif "Ready" in line:
+                match = line.split()
+                if len(match) >= 2:
+                    license_data["ready"] = int(match[0])
+            elif "Offline" in line:
+                match = line.split()
+                if len(match) >= 2:
+                    license_data["offline"] = int(match[0])
+            elif "Banned" in line:
+                match = line.split()
+                if len(match) >= 2:
+                    license_data["banned"] = int(match[0])
+            elif "Pending" in line:
+                match = line.split()
+                if len(match) >= 2:
+                    license_data["pending"] = int(match[0])
+            elif "Total Delegated" in line:
+                match = line.split()
+                if len(match) >= 2:
+                    license_data["total_delegated"] = int(match[0])
+        
+        # Calculate online/offline totals
+        online_total = license_data["checking"] + license_data["ready"]
+        offline_total = license_data["offline"] + license_data["banned"]
+        
+        # Determine status
+        if online_total > 0:
+            license_data["status"] = "online"
+        elif offline_total > 0:
+            license_data["status"] = "offline"
+        elif license_data["pending"] > 0:
+            license_data["status"] = "pending_approval"
+        else:
+            license_data["status"] = "no_licenses"
+        
+        license_data["online_total"] = online_total
+        license_data["offline_total"] = offline_total
+        
+        return license_data
+        
+    except Exception as e:
+        typer.echo(f"❌ Error parsing license output: {e}", err=True)
+        return None
+
+@app.command()
 def automate() -> None:
     """Full automation: install + create wallet"""
     typer.echo("🚀 Starting full Aethir automation...")
