@@ -97,26 +97,27 @@ module.exports = {
         }
       }
 
-      // Check Aethir license status using Typer
+      // Check Aethir basic status using Typer (avoiding hanging CLI)
       let aethirLicenseStatus = null;
       try {
-        const result = await utils.execCommand('/usr/bin/python3 /root/aethir_automation.py license-status', {
-          timeout: 45000, // Increased timeout for retry logic
+        const result = await utils.execCommand('/usr/bin/python3 /root/aethir_automation.py basic-status', {
+          timeout: 10000, // Short timeout for basic status
           cwd: '/root'
         });
         
         if (result.exitCode === 0) {
           // Parse the JSON output from Typer
-          const licenseData = JSON.parse(result.stdout);
+          const basicData = JSON.parse(result.stdout);
           aethirLicenseStatus = {
-            ...licenseData,
-            cli_accessible: true,
-            last_check: new Date().toISOString()
+            ...basicData,
+            cli_accessible: basicData.cli_exists,
+            last_check: new Date().toISOString(),
+            note: "Using basic status due to CLI hanging issue"
           };
           
-          logger.info('Aethir license status retrieved via Typer', aethirLicenseStatus);
+          logger.info('Aethir basic status retrieved via Typer', aethirLicenseStatus);
         } else {
-          logger.warn('Typer command failed', { 
+          logger.warn('Basic status command failed', { 
             exitCode: result.exitCode, 
             stderr: result.stderr,
             stdout: result.stdout 
@@ -128,7 +129,7 @@ module.exports = {
           };
         }
       } catch (error) {
-        logger.error('Could not get Aethir license status via Typer', { error: error.message });
+        logger.error('Could not get Aethir basic status via Typer', { error: error.message });
         aethirLicenseStatus = {
           cli_accessible: false,
           error: error.message,

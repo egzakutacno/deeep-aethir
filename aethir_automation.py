@@ -409,59 +409,25 @@ def license_status():
     """Get Aethir license status and return as JSON"""
     typer.echo("🔍 Getting Aethir license status...")
     
-    cli = AethirCLI()
+    # For now, return a basic status since CLI is hanging
+    # This will be improved once we figure out the CLI issue
+    license_data = {
+        "checking": 0,
+        "ready": 0,
+        "offline": 0,
+        "banned": 0,
+        "pending": 0,
+        "total_delegated": 0,
+        "status": "cli_hanging",
+        "message": "Aethir CLI is hanging, using fallback status",
+        "online_total": 0,
+        "offline_total": 0,
+        "cli_accessible": False,
+        "last_check": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    }
     
-    try:
-        # First, try to kill any existing Aethir processes to ensure clean state
-        try:
-            subprocess.run(['pkill', '-f', 'AethirCheckerCLI'], check=False, capture_output=True)
-            time.sleep(1)
-        except:
-            pass
-        
-        # Run license summary command with retry logic
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                result = cli.run_command("license summary", timeout=15)
-                
-                if result.returncode == 0 and result.stdout.strip():
-                    # Parse the license output
-                    license_data = parse_license_output(result.stdout)
-                    
-                    if license_data:
-                        # Print as JSON for hooks to consume
-                        typer.echo(json.dumps(license_data, indent=2))
-                        return
-                
-                # If we get here, the command didn't work properly
-                if attempt < max_retries - 1:
-                    typer.echo(f"⚠️ Attempt {attempt + 1} failed, retrying...", err=True)
-                    time.sleep(2)
-                    continue
-                else:
-                    typer.echo(f"❌ License command failed after {max_retries} attempts: {result.stderr}", err=True)
-                    return
-                    
-            except subprocess.TimeoutExpired:
-                if attempt < max_retries - 1:
-                    typer.echo(f"⚠️ Attempt {attempt + 1} timed out, retrying...", err=True)
-                    time.sleep(2)
-                    continue
-                else:
-                    typer.echo("❌ License command timed out after multiple attempts", err=True)
-                    return
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    typer.echo(f"⚠️ Attempt {attempt + 1} failed with error: {e}, retrying...", err=True)
-                    time.sleep(2)
-                    continue
-                else:
-                    typer.echo(f"❌ License command failed after {max_retries} attempts: {e}", err=True)
-                    return
-            
-    except Exception as e:
-        typer.echo(f"❌ Error getting license status: {e}", err=True)
+    # Print as JSON for hooks to consume
+    typer.echo(json.dumps(license_data, indent=2))
 
 def parse_license_output(output: str) -> Optional[Dict[str, Any]]:
     """Parse license summary output and return structured data"""
@@ -533,6 +499,31 @@ def parse_license_output(output: str) -> Optional[Dict[str, Any]]:
     except Exception as e:
         typer.echo(f"❌ Error parsing license output: {e}", err=True)
         return None
+
+@app.command()
+def basic_status():
+    """Get basic Aethir status without running CLI"""
+    typer.echo("🔍 Getting basic Aethir status...")
+    
+    status_data = {
+        "wallet_exists": os.path.exists(WALLET_JSON_PATH),
+        "cli_exists": os.path.exists(AETHIR_CLI_PATH),
+        "install_script_exists": os.path.exists(INSTALL_SCRIPT_PATH),
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+    }
+    
+    # Check wallet content if it exists
+    if status_data["wallet_exists"]:
+        try:
+            with open(WALLET_JSON_PATH, 'r') as f:
+                wallet_data = json.load(f)
+                status_data["wallet_has_keys"] = bool(wallet_data.get("private_key") and wallet_data.get("public_key"))
+                status_data["public_key_preview"] = wallet_data.get("public_key", "")[:8] + "..." if wallet_data.get("public_key") else None
+        except Exception as e:
+            status_data["wallet_error"] = str(e)
+    
+    # Print as JSON for hooks to consume
+    typer.echo(json.dumps(status_data, indent=2))
 
 @app.command()
 def automate() -> None:
