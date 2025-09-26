@@ -23,8 +23,8 @@ RUN apt-get update && \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install pexpect for Python automation
-RUN pip3 install pexpect
+# Install Typer for CLI automation
+RUN pip3 install typer
 
 # Install Node.js 22 (required for Riptide)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
@@ -55,9 +55,13 @@ RUN cd /root && \
     unzip AethirCheckerCLI-linux-1.0.3.2.tar.gz || \
     echo "Extraction failed - will try manual extraction later"
 
-# Copy automation script
+# Copy automation scripts
 COPY automate_aethir.sh /root/automate_aethir.sh
 RUN chmod +x /root/automate_aethir.sh
+
+# Copy Typer-based automation script
+COPY aethir_automation.py /root/aethir_automation.py
+RUN chmod +x /root/aethir_automation.py
 
 # Copy Riptide configuration and hooks
 COPY riptide.config.json /root/riptide.config.json
