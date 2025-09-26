@@ -67,7 +67,7 @@ class AethirCLI:
             all_output = []
             
             def read_output():
-                """Read stdout in a separate thread"""
+                """Read stdout in a separate thread with full debugging"""
                 try:
                     while True:
                         line = self.process.stdout.readline()
@@ -75,7 +75,10 @@ class AethirCLI:
                             break
                         all_output.append(line)
                         output_queue.put(line)
-                except:
+                        # Debug: Show every line from CLI in real-time
+                        typer.echo(f"🔍 CLI OUTPUT: {repr(line)}")
+                except Exception as e:
+                    typer.echo(f"🔍 READ ERROR: {e}")
                     pass
             
             # Start reading thread
@@ -115,15 +118,25 @@ class AethirCLI:
             
             # Wait for process to complete
             typer.echo("⏳ Waiting for process to complete...")
-            self.process.wait(timeout=60)
+            try:
+                self.process.wait(timeout=60)
+                typer.echo("✅ Process completed normally")
+            except subprocess.TimeoutExpired:
+                typer.echo("⚠️ Process timed out, checking status...")
+                typer.echo(f"🔍 Process status: {self.process.poll()}")
             
             # Join the reader thread
+            typer.echo("⏳ Joining reader thread...")
             reader_thread.join(timeout=5)
             
             # Get stderr
             stderr = self.process.stderr.read()
+            if stderr:
+                typer.echo(f"🔍 STDERR: {repr(stderr)}")
             
             stdout_text = "".join(all_output)
+            typer.echo(f"🔍 Total stdout length: {len(stdout_text)}")
+            typer.echo(f"🔍 Total lines captured: {len(all_output)}")
             
             typer.echo(f"✅ Process completed with return code: {self.process.returncode}")
             
@@ -256,6 +269,68 @@ def status() -> None:
             typer.echo("❌ Wallet file is corrupted")
     else:
         typer.echo("❌ Wallet file not found")
+
+@app.command()
+def debug_cli() -> None:
+    """Debug: Test CLI interaction manually with full output"""
+    typer.echo("🔍 Debug: Testing CLI interaction...")
+    
+    if not os.path.exists(AETHIR_CLI_PATH):
+        typer.echo(f"❌ Aethir CLI not found at {AETHIR_CLI_PATH}", err=True)
+        raise typer.Exit(1)
+    
+    try:
+        typer.echo("🚀 Starting CLI process...")
+        process = subprocess.Popen(
+            [AETHIR_CLI_PATH],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        typer.echo("📤 Sending 'y' to accept TOS...")
+        process.stdin.write("y\n")
+        process.stdin.flush()
+        
+        typer.echo("⏳ Waiting 15 seconds for CLI initialization...")
+        time.sleep(15)
+        
+        typer.echo("📤 Sending 'aethir wallet create'...")
+        process.stdin.write("aethir wallet create\n")
+        process.stdin.flush()
+        
+        typer.echo("⏳ Waiting 10 seconds for wallet creation...")
+        time.sleep(10)
+        
+        typer.echo("📤 Sending 'aethir wallet export'...")
+        process.stdin.write("aethir wallet export\n")
+        process.stdin.flush()
+        
+        typer.echo("⏳ Waiting 5 seconds for export...")
+        time.sleep(5)
+        
+        typer.echo("📤 Sending 'exit'...")
+        process.stdin.write("exit\n")
+        process.stdin.close()
+        
+        typer.echo("⏳ Waiting for process to complete...")
+        stdout, stderr = process.communicate(timeout=30)
+        
+        typer.echo("🔍 RAW CLI OUTPUT:")
+        typer.echo("=" * 50)
+        typer.echo(repr(stdout))
+        typer.echo("=" * 50)
+        
+        if stderr:
+            typer.echo("🔍 RAW CLI STDERR:")
+            typer.echo(repr(stderr))
+        
+        typer.echo(f"✅ CLI process completed with return code: {process.returncode}")
+        
+    except Exception as e:
+        typer.echo(f"❌ Debug failed: {e}", err=True)
+        raise typer.Exit(1)
 
 @app.command()
 def show_wallet() -> None:
