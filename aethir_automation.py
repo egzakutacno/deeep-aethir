@@ -47,7 +47,10 @@ class AethirCLI:
             raise
     
     def interactive_session(self, commands: list[str]) -> Dict[str, str]:
-        """Run multiple commands in an interactive session"""
+        """Run multiple commands in an interactive session with proper prompt waiting"""
+        import threading
+        import queue
+        
         try:
             # Start the CLI process
             self.process = subprocess.Popen(
@@ -55,37 +58,89 @@ class AethirCLI:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                bufsize=0  # Unbuffered
             )
             
-            # Send all commands at once
-            full_input = "\n".join(commands) + "\n"
-            typer.echo(f"📤 Sending commands: {commands}")
+            # Queue for collecting output
+            output_queue = queue.Queue()
+            all_output = []
             
-            # Send all commands and close stdin immediately
-            self.process.stdin.write(full_input)
+            def read_output():
+                """Read stdout in a separate thread"""
+                try:
+                    while True:
+                        line = self.process.stdout.readline()
+                        if not line:
+                            break
+                        all_output.append(line)
+                        output_queue.put(line)
+                except:
+                    pass
+            
+            # Start reading thread
+            reader_thread = threading.Thread(target=read_output)
+            reader_thread.daemon = True
+            reader_thread.start()
+            
+            # Send commands with proper timing
+            typer.echo("🚀 Starting interactive session...")
+            
+            for i, command in enumerate(commands):
+                typer.echo(f"📤 Sending command {i+1}: {command}")
+                self.process.stdin.write(command + "\n")
+                self.process.stdin.flush()
+                
+                if command == "y":
+                    # Wait for TOS acceptance and initialization
+                    typer.echo("⏳ Waiting for TOS acceptance and CLI initialization...")
+                    time.sleep(5)
+                    
+                elif "wallet create" in command:
+                    # Wait for wallet creation to complete
+                    typer.echo("⏳ Waiting for wallet creation...")
+                    time.sleep(3)
+                    
+                elif "wallet export" in command:
+                    # Wait for export to complete
+                    typer.echo("⏳ Waiting for wallet export...")
+                    time.sleep(2)
+                    
+                else:
+                    # Default wait time
+                    time.sleep(1)
+            
+            # Close stdin
             self.process.stdin.close()
             
-            # Wait for process to complete with timeout
-            try:
-                stdout, stderr = self.process.communicate(timeout=120)
-                typer.echo(f"✅ Process completed with return code: {self.process.returncode}")
-                
-                return {
-                    "stdout": stdout,
-                    "stderr": stderr,
-                    "returncode": self.process.returncode
-                }
-            except subprocess.TimeoutExpired:
-                typer.echo("⚠️ Process timed out, terminating...")
-                self.process.kill()
-                stdout, stderr = self.process.communicate()
-                return {
-                    "stdout": stdout,
-                    "stderr": stderr,
-                    "returncode": self.process.returncode
-                }
+            # Wait for process to complete
+            typer.echo("⏳ Waiting for process to complete...")
+            self.process.wait(timeout=60)
             
+            # Join the reader thread
+            reader_thread.join(timeout=5)
+            
+            # Get stderr
+            stderr = self.process.stderr.read()
+            
+            stdout_text = "".join(all_output)
+            
+            typer.echo(f"✅ Process completed with return code: {self.process.returncode}")
+            
+            return {
+                "stdout": stdout_text,
+                "stderr": stderr,
+                "returncode": self.process.returncode
+            }
+            
+        except subprocess.TimeoutExpired:
+            typer.echo("⚠️ Process timed out, terminating...")
+            self.process.kill()
+            return {
+                "stdout": "".join(all_output),
+                "stderr": "Process timed out",
+                "returncode": -1
+            }
         except Exception as e:
             typer.echo(f"❌ Interactive session error: {e}", err=True)
             raise
