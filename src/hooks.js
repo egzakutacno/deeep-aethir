@@ -87,7 +87,7 @@ module.exports = {
     }
   },
 
-  heartbeat: async ({ logger }) => {
+  heartbeat: async ({ logger, utils }) => {
     // Enhanced heartbeat with system metrics
     try {
       const walletExists = await utils.fileExists('/root/wallet.json');
@@ -223,7 +223,7 @@ module.exports = {
 
   // Core lifecycle and monitoring hooks (same category as heartbeat, status, health)
 
-  ready: async ({ logger }) => {
+  ready: async ({ logger, utils }) => {
     logger.info('Ready hook: Aethir Checker service is ready');
     
     try {
@@ -252,7 +252,7 @@ module.exports = {
     }
   },
 
-  probe: async ({ logger }) => {
+  probe: async ({ logger, utils }) => {
     logger.debug('Probe hook: Liveness probe for Aethir Checker');
     
     try {
@@ -288,7 +288,7 @@ module.exports = {
     }
   },
 
-  metrics: async ({ logger }) => {
+  metrics: async ({ logger, utils }) => {
     logger.debug('Metrics hook: Collecting Aethir Checker metrics');
     
     try {
@@ -336,7 +336,7 @@ module.exports = {
     }
   },
 
-  validate: async ({ logger }) => {
+  validate: async ({ logger, utils }) => {
     logger.info('Validation hook: Checking Aethir Checker configuration');
     
     try {
