@@ -360,34 +360,25 @@ def parse_wallet_output(output: str) -> Optional[Dict[str, str]]:
         private_key = None
         public_key = None
         
-        # Look for the export output (more reliable than create output)
-        in_export_section = False
-        
+        # Look for keys in the entire output (both create and export sections)
         for i, line in enumerate(lines):
-            if "aethir wallet export" in line:
-                in_export_section = True
-                continue
-                
-            if in_export_section:
-                if "Current private key:" in line:
-                    # Look for the base64 key in the next few lines
-                    for j in range(i+1, min(i+15, len(lines))):
-                        key_line = lines[j].strip()
-                        if key_line and len(key_line) > 50 and not key_line.startswith("Current"):
-                            private_key = key_line
-                            break
-                
-                elif "Current public key:" in line:
-                    # Look for the hex key in the next few lines
-                    for j in range(i+1, min(i+5, len(lines))):
-                        key_line = lines[j].strip()
-                        if key_line and len(key_line) == 40 and not key_line.startswith("Current"):
-                            public_key = key_line
-                            break
-                
-                # Stop at the next Aethir> prompt or ***************************************
-                if line.strip().startswith("Aethir>") or "***************************************" in line:
-                    break
+            if "Current private key:" in line:
+                # Look for the base64 key in the next few lines
+                for j in range(i+1, min(i+15, len(lines))):
+                    key_line = lines[j].strip()
+                    if key_line and len(key_line) > 50 and not key_line.startswith("Current") and not key_line.startswith("***************************************"):
+                        private_key = key_line
+                        typer.echo(f"🔍 Found private key: {key_line[:50]}...")
+                        break
+            
+            elif "Current public key:" in line:
+                # Look for the hex key in the next few lines
+                for j in range(i+1, min(i+5, len(lines))):
+                    key_line = lines[j].strip()
+                    if key_line and len(key_line) == 40 and not key_line.startswith("Current") and not key_line.startswith("***************************************"):
+                        public_key = key_line
+                        typer.echo(f"🔍 Found public key: {key_line}")
+                        break
         
         typer.echo(f"🔍 Parsed private key: {'Found' if private_key else 'Not found'}")
         typer.echo(f"🔍 Parsed public key: {'Found' if public_key else 'Not found'}")
