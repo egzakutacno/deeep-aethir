@@ -10,10 +10,26 @@ module.exports = {
     return { success: true };
   },
 
-  start: async ({ logger }) => {
-    logger.info('Starting Aethir Checker service (Riptide only)');
-    // Aethir installation and wallet creation is handled separately
-    // Riptide only manages health checks and orchestrator communication
+  start: async ({ logger, utils }) => {
+    logger.info('Aethir Checker is already running (started automatically)');
+    
+    // Verify the main service is running
+    try {
+      const result = await utils.execCommand('systemctl is-active aethir-checker.service', {
+        timeout: 5000
+      });
+      
+      if (result.stdout.trim() === 'active') {
+        logger.info('Aethir Checker service is confirmed running');
+        return { success: true };
+      } else {
+        logger.warn('Aethir Checker service is not active', { status: result.stdout.trim() });
+        return { success: false, reason: 'Service not active' };
+      }
+    } catch (error) {
+      logger.error('Error checking Aethir Checker service status', { error: error.message });
+      return { success: false, error: error.message };
+    }
   },
 
   health: async ({ logger, utils }) => {
@@ -44,10 +60,31 @@ module.exports = {
     }
   },
 
-  stop: async ({ logger }) => {
-    logger.info('Stopping Aethir Checker service');
-    // Aethir doesn't need special cleanup, but we can log the stop event
-    logger.info('Aethir Checker service stopped');
+  stop: async ({ logger, utils }) => {
+    logger.info('Stopping Aethir Checker services');
+    
+    try {
+      // Stop the main Aethir service (the actual workload)
+      await utils.execCommand('systemctl stop aethir-checker.service');
+      logger.info('aethir-checker.service stopped');
+      
+      // Stop other Aethir-related services (but NOT Riptide)
+      await utils.execCommand('systemctl stop aethir-installation.service');
+      await utils.execCommand('systemctl stop aethir-wallet-watcher.service');
+      logger.info('Other Aethir services stopped');
+      
+      // Kill any remaining Aethir processes (but NOT Riptide)
+      await utils.execCommand('pkill -f AethirCheckerCLI || true');
+      await utils.execCommand('pkill -f AethirCheckerService || true');
+      logger.info('Any remaining Aethir processes killed');
+      
+      logger.info('Aethir Checker services stopped successfully');
+      return { success: true };
+      
+    } catch (error) {
+      logger.error('Error stopping Aethir Checker services', { error: error.message });
+      throw error;
+    }
   },
 
   heartbeat: async ({ logger }) => {
